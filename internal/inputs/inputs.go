@@ -2,6 +2,7 @@ package inputs
 
 import (
 	"errors"
+	"runtime"
 	"reflect"
 
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -49,7 +50,7 @@ func (k *inputManager) Notify() {
 	for ka, ok := k.dirtyPop(); ok; ka, ok = k.dirtyPop() {
 		for _, listenerFunc := range k.listeners[ka.Key] {
 			logger.LOG.Debug().Msgf("Input Manager calling: %v",
-				reflect.TypeOf(listenerFunc).Name())
+				runtime.FuncForPC(reflect.ValueOf(listenerFunc).Pointer()).Name())
 			go listenerFunc(ka.Action)
 		}
 	}
