@@ -3,7 +3,9 @@ package main
 import (
 	"runtime"
 
+	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
+
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
@@ -37,6 +39,9 @@ func main() {
 	}
 
 	window.SetFramebufferSizeCallback(framebufferResizeCallback)
+	window.SetKeyCallback(inputs.InputKeyCallback)
+
+	inputs.INPUT_MANAGER.Subscribe(glfw.KeyW, printToWorld)
 
 	for !window.ShouldClose() {
 		// rendering
@@ -46,9 +51,20 @@ func main() {
 		// swaping and polling
 		window.SwapBuffers()
 		glfw.PollEvents()
+
+		inputs.INPUT_MANAGER.Notify()
 	}
 }
 
 func framebufferResizeCallback(w *glfw.Window, width int, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
+}
+
+func printToWorld(a glfw.Action) {
+	if a == glfw.Press {
+		logger.LOG.Debug().Msg("Hello World")
+	}
+	if a == glfw.Release {
+		logger.LOG.Debug().Msg("Goodby World")
+	}
 }
