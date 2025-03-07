@@ -2,6 +2,8 @@ package main
 
 import (
 	"runtime"
+	"time"
+	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -39,9 +41,20 @@ func main() {
 	}
 
 	window.SetFramebufferSizeCallback(framebufferResizeCallback)
-	window.SetKeyCallback(inputs.InputKeyCallback)
+	window.SetKeyCallback(inputs.InputKeysCallback)
 
-	inputs.INPUT_MANAGER.Subscribe(glfw.KeyW, printToWorld)
+	myDummyObj := new(dummyObj)
+	myDummyObj.s = "keep me"
+	myDummyObj.i = inputs.InputListener(myDummyObj)
+	inputs.Subscribe(glfw.KeyW, weak.Make(&myDummyObj.i))
+
+	mySecondObj := new(dummyObj)
+	mySecondObj.s = "throw me away"
+	mySecondObj.i = inputs.InputListener(mySecondObj)
+	inputs.Subscribe(glfw.KeyW, weak.Make(&mySecondObj.i))
+
+	go unsubLater(myDummyObj)
+	go gcLater()
 
 	for !window.ShouldClose() {
 		// rendering
@@ -52,19 +65,44 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 
-		inputs.INPUT_MANAGER.Notify()
+		inputs.GetInputManager().Notify()
 	}
+	logger.LOG.Info().Msgf("This is still being used:%v. %v", &myDummyObj.i, myDummyObj.s)
 }
 
 func framebufferResizeCallback(w *glfw.Window, width int, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
 }
 
-func printToWorld(a glfw.Action) {
+type dummyObj struct {
+	s string
+	i inputs.InputListener
+}
+
+func (d dummyObj) OnKeyAction(a glfw.Action) {
+	printToWorld(a, d.s)
+}
+
+func printToWorld(a glfw.Action, s string) {
 	if a == glfw.Press {
-		logger.LOG.Debug().Msg("Hello World")
+		logger.LOG.Debug().Msg(s + ": Hello World")
 	}
 	if a == glfw.Release {
-		logger.LOG.Debug().Msg("Goodby World")
+		logger.LOG.Debug().Msg(s + ": Goodbye World")
 	}
+}
+
+func gcLater() {
+	timer := time.NewTicker(5 * time.Second)
+	<-timer.C
+	timer.Stop()
+	runtime.GC()
+	logger.LOG.Debug().Msg("GC activated")
+}
+
+func unsubLater(d *dummyObj) {
+	timer := time.NewTicker(10 * time.Second)
+	<-timer.C
+	timer.Stop()
+	inputs.Unsubscribe(glfw.KeyW, weak.Make(&d.i))
 }

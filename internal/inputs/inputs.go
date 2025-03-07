@@ -1,9 +1,10 @@
 package inputs
 
 import (
+	"container/list"
 	"errors"
-	"runtime"
 	"reflect"
+	"weak"
 
 	"github.com/go-gl/glfw/v3.3/glfw"
 
@@ -22,52 +23,135 @@ type KeyAction struct {
 	Action glfw.Action
 }
 
+type InputListener interface {
+	OnKeyAction(glfw.Action)
+}
+
 type inputManager struct {
 	keyStates      map[glfw.Key]KeyState
 	keyActionQueue []KeyAction
-	listeners      map[glfw.Key][]func(glfw.Action)
+	keyListeners   map[glfw.Key]*list.List
 }
 
-func (k *inputManager) GetKeyState(key glfw.Key) (KeyState, bool) {
-	value, ok := k.keyStates[key]
+func GetInputManager() *inputManager {
+	return singleton_im
+}
+
+func GetKeyState(key glfw.Key) (KeyState, bool) {
+	value, ok := singleton_im.keyStates[key]
 	return value, ok
 }
 
-func (k *inputManager) Subscribe(key glfw.Key, f func(glfw.Action)) bool {
-	_, ok := k.listeners[key]
-	if !ok {
+func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
+	if _, ok := singleton_im.keyListeners[key]; !ok {
+		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
-	k.listeners[key] = append(k.listeners[key], f)
+
+	singleton_im.keyListeners[key].PushFront(w)
+	if singleton_im.keyListeners[key].Len() > 10 {
+		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
+	}
+	logger.LOG.Debug().Msgf("(Key: %v) Added subscriber: %v(%v)",
+		key,
+		w.Value(),
+		reflect.TypeOf(*w.Value()),
+	)
 	return true
 }
 
-func (k *inputManager) Unsubscribe() {
+func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
+	listElem := singleton_im.keyListeners[key].Front()
+	for ; listElem != nil; listElem = listElem.Next() {
+		// if we encounter nil valued elem, we delete. So should store next here.
+		nextListElem := listElem.Next()
 
+		switch listener := listElem.Value.(type) {
+		case nil:
+			logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
+			singleton_im.keyListeners[key].Remove(listElem)
+		case weak.Pointer[InputListener]:
+			strongListener := listener.Value()
+			if strongListener == nil {
+				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
+				singleton_im.keyListeners[key].Remove(listElem)
+			} else if listener == w {
+				logger.LOG.Debug().Msgf("(Key: %v) Removing subscriber: %v(%v)",
+					key,
+					w.Value(),
+					reflect.TypeOf(*w.Value()),
+				)
+				singleton_im.keyListeners[key].Remove(listElem)
+				return nil
+			}
+		default:
+			logger.LOG.Fatal().Msgf("(Key: %v) Found listener not a weakptr to InputListener. %v",
+				key,
+				listener,
+			)
+		}
+
+		listElem = nextListElem
+	}
+
+	logger.LOG.Warn().Msgf("(Key: %v) Failed to remove listener. Not found: %v(%v)",
+		key,
+		w.Value(),
+		reflect.TypeOf(*w.Value()),
+	)
+	return errors.New("no listener to be removed")
 }
 
 func (k *inputManager) Notify() {
+	// for all Actions in input queue
 	for ka, ok := k.dirtyPop(); ok; ka, ok = k.dirtyPop() {
-		for _, listenerFunc := range k.listeners[ka.Key] {
-			logger.LOG.Debug().Msgf("Input Manager calling: %v",
-				runtime.FuncForPC(reflect.ValueOf(listenerFunc).Pointer()).Name())
-			go listenerFunc(ka.Action)
+		// notify all listeners of that key
+		for listElem := k.keyListeners[ka.Key].Front(); listElem != nil; {
+			// if we encounter nil valued elem, we delete. So should store next here.
+			nextListElem := listElem.Next()
+
+			switch listener := listElem.Value.(type) {
+			case nil:
+				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", ka.Key)
+				k.keyListeners[ka.Key].Remove(listElem)
+			case weak.Pointer[InputListener]:
+				strongListener := listener.Value()
+				if strongListener == nil {
+					logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", ka.Key)
+					k.keyListeners[ka.Key].Remove(listElem)
+				} else {
+					logger.LOG.Debug().Msgf(
+						"(Key: %v) Input Manager notifying: %v (%v)",
+						ka.Key,
+						listener,
+						reflect.TypeOf(listener).Name(),
+					)
+					go (*strongListener).OnKeyAction(ka.Action)
+				}
+			default:
+				logger.LOG.Fatal().Msgf(
+					"(Key: %v) Found listener not a weakptr to InputListener: %v (%v)",
+					ka.Key,
+					listener,
+					reflect.TypeOf(listener).Name(),
+				)
+			}
+
+			listElem = nextListElem
 		}
 	}
 	// because dirty pop
 	k.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
 }
 
-var INPUT_MANAGER *inputManager
-
-func InputKeyCallback(
+func InputKeysCallback(
 	w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	// Throw away repeat press case
 	if action == glfw.Repeat {
 		return
 	}
 
-	err := INPUT_MANAGER.push(KeyAction{Key: key, Action: action})
+	err := singleton_im.push(KeyAction{Key: key, Action: action})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
@@ -76,24 +160,23 @@ func InputKeyCallback(
 // 10 seems like a large number for every frame's worth of inputs
 const inputManagerQueueSize int = 10
 
-// 50 seems like an arbitrary HUGE number to me
-const inputManagerListenerSize int = 50
+var singleton_im *inputManager
 
 func init() {
-	INPUT_MANAGER = new(inputManager)
-	INPUT_MANAGER.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
-	INPUT_MANAGER.keyStates = make(map[glfw.Key]KeyState)
-	INPUT_MANAGER.keyStates[glfw.KeyW] = Inactive
-	INPUT_MANAGER.keyStates[glfw.KeyA] = Inactive
-	INPUT_MANAGER.keyStates[glfw.KeyS] = Inactive
-	INPUT_MANAGER.keyStates[glfw.KeyD] = Inactive
-	INPUT_MANAGER.keyStates[glfw.KeyEscape] = Inactive
-	INPUT_MANAGER.listeners = make(map[glfw.Key][]func(glfw.Action))
-	INPUT_MANAGER.listeners[glfw.KeyW] = make([]func(glfw.Action), 0, inputManagerListenerSize)
-	INPUT_MANAGER.listeners[glfw.KeyA] = make([]func(glfw.Action), 0, inputManagerListenerSize)
-	INPUT_MANAGER.listeners[glfw.KeyS] = make([]func(glfw.Action), 0, inputManagerListenerSize)
-	INPUT_MANAGER.listeners[glfw.KeyD] = make([]func(glfw.Action), 0, inputManagerListenerSize)
-	INPUT_MANAGER.listeners[glfw.KeyEscape] = make([]func(glfw.Action), 0, inputManagerListenerSize)
+	singleton_im = new(inputManager)
+	singleton_im.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
+	singleton_im.keyStates = make(map[glfw.Key]KeyState)
+	singleton_im.keyStates[glfw.KeyW] = Inactive
+	singleton_im.keyStates[glfw.KeyA] = Inactive
+	singleton_im.keyStates[glfw.KeyS] = Inactive
+	singleton_im.keyStates[glfw.KeyD] = Inactive
+	singleton_im.keyStates[glfw.KeyEscape] = Inactive
+	singleton_im.keyListeners = make(map[glfw.Key]*list.List)
+	singleton_im.keyListeners[glfw.KeyW] = list.New()
+	singleton_im.keyListeners[glfw.KeyA] = list.New()
+	singleton_im.keyListeners[glfw.KeyS] = list.New()
+	singleton_im.keyListeners[glfw.KeyD] = list.New()
+	singleton_im.keyListeners[glfw.KeyEscape] = list.New()
 }
 
 func (k *inputManager) push(ka KeyAction) error {
