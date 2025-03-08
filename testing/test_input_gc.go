@@ -3,6 +3,7 @@ package main
 import (
 	"runtime"
 	"time"
+	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -44,12 +45,25 @@ func main() {
 	}
 
 	window.SetFramebufferSizeCallback(framebufferResizeCallback)
-	window.SetFocusCallback(captureMouseFocusCallback)
-	window.SetCursorPosCallback(debugMousePosCallback)
+	window.SetFocusCallback(dummyFocusCallback)
+	window.SetCursorPosCallback(dummyMousePosCallback)
 	window.SetKeyCallback(inputs.InputKeysCallback)
 	window.SetMouseButtonCallback(inputs.InputMouseCallback)
 
 	window.Focus()
+
+	myDummyObj := new(dummyObj)
+	myDummyObj.s = "keep me"
+	myDummyObj.i = inputs.InputListener(myDummyObj)
+	inputs.Subscribe(glfw.KeyW, weak.Make(&myDummyObj.i))
+
+	mySecondObj := new(dummyObj)
+	mySecondObj.s = "throw me away"
+	mySecondObj.i = inputs.InputListener(mySecondObj)
+	inputs.Subscribe(glfw.KeyW, weak.Make(&mySecondObj.i))
+
+	go unsubLater(myDummyObj)
+	go gcLater()
 
 	fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
 	var start_frame_time time.Time
@@ -67,10 +81,11 @@ func main() {
 
 		inputs.GetInputManager().Notify()
 	}
+	logger.LOG.Info().Msgf("This is still being used:%v. %v", &myDummyObj.i, myDummyObj.s)
 }
 
 func framebufferResizeCallback(w *glfw.Window, width int, height int) {
-	logger.LOG.Error().Msg("This shouldn't be allowed!!!!")
+	gl.Viewport(0, 0, int32(width), int32(height))
 }
 
 func waitFrame(t time.Time, fpsLogger zerolog.Logger) time.Time {
@@ -90,16 +105,49 @@ func waitFrame(t time.Time, fpsLogger zerolog.Logger) time.Time {
 	return time.Now()
 }
 
-func debugMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
+type dummyObj struct {
+	s string
+	i inputs.InputListener
+}
+
+func (d dummyObj) OnKeyAction(a glfw.Action) {
+	printToWorld(a, d.s)
+}
+
+func printToWorld(a glfw.Action, s string) {
+	if a == glfw.Press {
+		logger.LOG.Debug().Msg(s + ": Hello World")
+	}
+	if a == glfw.Release {
+		logger.LOG.Debug().Msg(s + ": Goodbye World")
+	}
+}
+
+func gcLater() {
+	timer := time.NewTicker(3 * time.Second)
+	<-timer.C
+	timer.Stop()
+	runtime.GC()
+	logger.LOG.Debug().Msg("GC activated")
+}
+
+func unsubLater(d *dummyObj) {
+	timer := time.NewTicker(5 * time.Second)
+	<-timer.C
+	timer.Stop()
+	inputs.Unsubscribe(glfw.KeyW, weak.Make(&d.i))
+}
+
+func dummyMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 	w.SetCursorPos(0, 0)
 	logger.LOG.Debug().Msgf("Mouse is at (%v, %v)", xpos, ypos)
 }
 
-func captureMouseFocusCallback(w *glfw.Window, focused bool) {
+func dummyFocusCallback(w *glfw.Window, focused bool) {
 	if focused {
-		logger.LOG.Debug().Msgf("Window gained focus, capturing mouse.")
+		logger.LOG.Debug().Msgf("Window gained focus")
 		w.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 	} else {
-		logger.LOG.Debug().Msgf("Window lost focus.")
+		logger.LOG.Debug().Msgf("Window lost focus")
 	}
 }
