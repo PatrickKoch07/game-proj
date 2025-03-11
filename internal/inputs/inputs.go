@@ -34,22 +34,25 @@ type inputManager struct {
 }
 
 func GetInputManager() *inputManager {
-	return singleton_im
+	if singletonInputManager == nil {
+		initInputManager()
+	}
+	return singletonInputManager
 }
 
 func GetKeyState(key glfw.Key) (KeyState, bool) {
-	value, ok := singleton_im.keyStates[key]
+	value, ok := GetInputManager().keyStates[key]
 	return value, ok
 }
 
 func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
-	if _, ok := singleton_im.keyListeners[key]; !ok {
+	if _, ok := GetInputManager().keyListeners[key]; !ok {
 		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
 
-	singleton_im.keyListeners[key].PushFront(w)
-	if singleton_im.keyListeners[key].Len() > 10 {
+	GetInputManager().keyListeners[key].PushFront(w)
+	if GetInputManager().keyListeners[key].Len() > 10 {
 		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
 	}
 	logger.LOG.Debug().Msgf("(Key: %v) Added subscriber: %v(%v)",
@@ -61,7 +64,7 @@ func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
 }
 
 func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
-	listenerList, ok := singleton_im.keyListeners[key]
+	listenerList, ok := GetInputManager().keyListeners[key]
 	if !ok {
 		return errors.New("key does not exist")
 	}
@@ -73,19 +76,19 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 		switch listener := listElem.Value.(type) {
 		case nil:
 			logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-			singleton_im.keyListeners[key].Remove(listElem)
+			GetInputManager().keyListeners[key].Remove(listElem)
 		case weak.Pointer[InputListener]:
 			strongListener := listener.Value()
 			if strongListener == nil {
 				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-				singleton_im.keyListeners[key].Remove(listElem)
+				GetInputManager().keyListeners[key].Remove(listElem)
 			} else if listener == w {
 				logger.LOG.Debug().Msgf("(Key: %v) Removing subscriber: %v(%v)",
 					key,
 					w.Value(),
 					reflect.TypeOf(*w.Value()),
 				)
-				singleton_im.keyListeners[key].Remove(listElem)
+				GetInputManager().keyListeners[key].Remove(listElem)
 				return nil
 			}
 		default:
@@ -160,7 +163,7 @@ func InputKeysCallback(
 		return
 	}
 
-	err := singleton_im.push(KeyAction{Key: key, Action: action})
+	err := GetInputManager().push(KeyAction{Key: key, Action: action})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
@@ -173,7 +176,7 @@ func InputMouseCallback(
 		return
 	}
 
-	err := singleton_im.push(KeyAction{Key: glfw.Key(MouseButtonToKey(button)), Action: action})
+	err := GetInputManager().push(KeyAction{Key: glfw.Key(MouseButtonToKey(button)), Action: action})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
@@ -182,29 +185,35 @@ func InputMouseCallback(
 // 10 seems like a large number for every frame's worth of inputs
 const inputManagerQueueSize int = 10
 
-var singleton_im *inputManager
+var singletonInputManager *inputManager
 
 func init() {
-	singleton_im = new(inputManager)
-	singleton_im.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
+	initInputManager()
+}
 
-	singleton_im.keyStates = make(map[glfw.Key]KeyState)
-	singleton_im.keyStates[glfw.KeyW] = Inactive
-	singleton_im.keyStates[glfw.KeyA] = Inactive
-	singleton_im.keyStates[glfw.KeyS] = Inactive
-	singleton_im.keyStates[glfw.KeyD] = Inactive
-	singleton_im.keyStates[glfw.KeyEscape] = Inactive
-	singleton_im.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = Inactive
-	singleton_im.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = Inactive
+func initInputManager() {
+	logger.LOG.Info().Msg("Creating new Input Manager!")
 
-	singleton_im.keyListeners = make(map[glfw.Key]*list.List)
-	singleton_im.keyListeners[glfw.KeyW] = list.New()
-	singleton_im.keyListeners[glfw.KeyA] = list.New()
-	singleton_im.keyListeners[glfw.KeyS] = list.New()
-	singleton_im.keyListeners[glfw.KeyD] = list.New()
-	singleton_im.keyListeners[glfw.KeyEscape] = list.New()
-	singleton_im.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = list.New()
-	singleton_im.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = list.New()
+	singletonInputManager = new(inputManager)
+	singletonInputManager.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
+
+	singletonInputManager.keyStates = make(map[glfw.Key]KeyState)
+	singletonInputManager.keyStates[glfw.KeyW] = Inactive
+	singletonInputManager.keyStates[glfw.KeyA] = Inactive
+	singletonInputManager.keyStates[glfw.KeyS] = Inactive
+	singletonInputManager.keyStates[glfw.KeyD] = Inactive
+	singletonInputManager.keyStates[glfw.KeyEscape] = Inactive
+	singletonInputManager.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = Inactive
+	singletonInputManager.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = Inactive
+
+	singletonInputManager.keyListeners = make(map[glfw.Key]*list.List)
+	singletonInputManager.keyListeners[glfw.KeyW] = list.New()
+	singletonInputManager.keyListeners[glfw.KeyA] = list.New()
+	singletonInputManager.keyListeners[glfw.KeyS] = list.New()
+	singletonInputManager.keyListeners[glfw.KeyD] = list.New()
+	singletonInputManager.keyListeners[glfw.KeyEscape] = list.New()
+	singletonInputManager.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = list.New()
+	singletonInputManager.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = list.New()
 }
 
 func MouseButtonToKey(m glfw.MouseButton) int {
