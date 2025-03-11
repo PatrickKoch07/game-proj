@@ -6,6 +6,7 @@ import (
 
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
+	"github.com/PatrickKoch07/game-proj/internal/sprites"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -15,17 +16,16 @@ import (
 var TARGET_FPS int = 60
 
 func init() {
-	// for glfw
+	logger.LOG.Info().Msg("Init main")
+	// for rendering & window
 	runtime.LockOSThread()
+	initGLFW()
 }
 
-func main() {
-	logger.LOG.Info().Msg("Hello World")
-
+func initGLFW() {
 	if err := glfw.Init(); err != nil {
 		panic(err)
 	}
-	defer glfw.Terminate()
 
 	glfw.WindowHint(glfw.Resizable, glfw.False)
 	glfw.WindowHint(glfw.Focused, glfw.False)
@@ -33,33 +33,20 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := glfw.CreateWindow(1280, 960, "Patrick's Game", nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	window.MakeContextCurrent()
+}
 
-	if err := gl.Init(); err != nil {
-		panic(err)
-	}
+func main() {
+	defer glfw.Terminate()
+	window := createWindow()
 
-	window.SetFramebufferSizeCallback(framebufferResizeCallback)
-	window.SetFocusCallback(captureMouseFocusCallback)
-	window.SetCursorPosCallback(debugMousePosCallback)
-	window.SetKeyCallback(inputs.InputKeysCallback)
-	window.SetMouseButtonCallback(inputs.InputMouseCallback)
-
-	window.Focus()
-
-	fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
-	var start_frame_time time.Time
-	for !window.ShouldClose() {
-		start_frame_time = waitFrame(start_frame_time, fpsLogger)
-		// window.SetCursorPos(1280.0/2.0, 960.0/2.0)
-
-		// rendering
-		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	// Logger to sample fps every second
+	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
+		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.Clear(gl.DEPTH_BUFFER_BIT)
+
+		// draw
+		sprites.DrawDrawQueue()
 
 		// swaping and polling
 		window.SwapBuffers()
@@ -69,25 +56,35 @@ func main() {
 	}
 }
 
-func framebufferResizeCallback(w *glfw.Window, width int, height int) {
-	logger.LOG.Error().Msg("This shouldn't be allowed!!!!")
-}
+func createWindow() *glfw.Window {
+	logger.LOG.Info().Msg("Creating Window")
 
-func waitFrame(t time.Time, fpsLogger zerolog.Logger) time.Time {
-	targetFrameDur := time.Duration(int(1.0/float64(TARGET_FPS)*1000.0) * int(time.Millisecond))
-	waitTime := max(targetFrameDur-time.Since(t), 1)
-	<-time.NewTicker(waitTime).C
+	sprites.InitShaderScreen(1280, 960)
+	window, err := glfw.CreateWindow(1280, 960, "Patrick's Game", nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	window.MakeContextCurrent()
 
-	// below just for displaying framerate
-	fps := 1.0 / float64(time.Now().UnixMilli()-t.UnixMilli()) * 1000.0
-	fpsLogger.Debug().Msgf(
-		"Frame started. Last fps: %v (target: %v). Waited for %v%% of frametime",
-		int(fps),
-		TARGET_FPS,
-		int(float64(waitTime)/float64(targetFrameDur)*100.0),
-	)
+	if err := gl.Init(); err != nil {
+		panic(err)
+	}
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.Viewport(0, 0, 1280, 960)
+	gl.Enable(gl.BLEND)
+	gl.Enable(gl.DEPTH)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	return time.Now()
+	logger.LOG.Info().Msg("Setting callbacks")
+	window.SetFocusCallback(captureMouseFocusCallback)
+	window.SetCursorPosCallback(debugMousePosCallback)
+	// window.SetCursorPosCallback(cursor.UpdateMousePosCallback)
+	window.SetKeyCallback(inputs.InputKeysCallback)
+	window.SetMouseButtonCallback(inputs.InputMouseCallback)
+
+	window.Focus()
+
+	return window
 }
 
 func debugMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
@@ -101,5 +98,27 @@ func captureMouseFocusCallback(w *glfw.Window, focused bool) {
 		w.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 	} else {
 		logger.LOG.Debug().Msgf("Window lost focus.")
+	}
+}
+
+func setupFramerateCap() func() {
+	var last_frame_start_time time.Time
+	fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
+
+	return func() {
+		targetFrameDur := time.Duration(int(1.0/float64(TARGET_FPS)*1000.0) * int(time.Millisecond))
+		waitTime := max(targetFrameDur-time.Since(last_frame_start_time), 1)
+		<-time.NewTicker(waitTime).C
+
+		// below just for displaying framerate
+		fps := 1.0 / float64(time.Now().UnixMilli()-last_frame_start_time.UnixMilli()) * 1000.0
+		fpsLogger.Debug().Msgf(
+			"Frame started. Last fps: %v (target: %v). Waited for %v%% of frametime",
+			int(fps),
+			TARGET_FPS,
+			int(float64(waitTime)/float64(targetFrameDur)*100.0),
+		)
+
+		last_frame_start_time = time.Now()
 	}
 }
