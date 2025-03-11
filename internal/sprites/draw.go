@@ -33,6 +33,14 @@ func getDrawQueue() *list.List {
 	return drawQueue
 }
 
+/*
+BIG NOTE ABOUT THE FOLLOWING TWO FUNCTIONS (ADD TO DRAWING QUEUE & REMOVE FROM DRAWING QUEUE):
+	The idea is that these two functions would be used whenever the player enters the start and
+	end area of a zone. Ideally, they would hit a loading area for the next zone. Then they would
+	hit a deload zone from the previous region. Some game state would keep track of what 'zone' 
+	they are in and what operation to do when they cross any boundary.
+*/
+
 func AddToDrawingQueue(wD weak.Pointer[DrawObject], wM weak.Pointer[MoveObject]) {
 	drawQueueObj := drawQueueObject{weakDrawObj: wD, weakMoveObj: wM}
 
