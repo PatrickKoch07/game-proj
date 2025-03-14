@@ -11,5 +11,6 @@ out vec2 TexCoord;
 void main()
 {
     gl_Position = projection * (transform * (scale * vec4(vPos.x, vPos.y, -vPos.y, 1.0f)));
+    gl_Position.z = -1.0f;
     TexCoord = vPos.zw;
 }

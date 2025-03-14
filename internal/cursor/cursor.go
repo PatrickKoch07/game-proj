@@ -40,7 +40,7 @@ func InitCursor() {
 	gameCursor = new(cursor)
 	gameCursor.Sprite = sprites.Sprite{}
 
-	shaderId, ok := sprites.MakeShader("alphaTextureShader.vs", "alphaTextureShader.fs")
+	shaderId, ok := sprites.MakeShader("cursorShader.vs", "alphaTextureShader.fs")
 	if !ok {
 		logger.LOG.Fatal().Msg("Shader for cursor failed to be made.")
 	}
