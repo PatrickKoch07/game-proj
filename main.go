@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
@@ -57,9 +58,8 @@ func main() {
 }
 
 func createWindow() *glfw.Window {
-	logger.LOG.Info().Msg("Creating Window")
+	logger.LOG.Info().Msg("Creating new window")
 
-	sprites.InitShaderScreen(1280, 960)
 	window, err := glfw.CreateWindow(1280, 960, "Patrick's Game", nil, nil)
 	if err != nil {
 		panic(err)
@@ -69,27 +69,25 @@ func createWindow() *glfw.Window {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
-	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
-	gl.Viewport(0, 0, 1280, 960)
+	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
+	// gl.Viewport(0, 0, 1280, 960)
 	gl.Enable(gl.BLEND)
-	gl.Enable(gl.DEPTH)
+	gl.DepthFunc(gl.LESS)
+	gl.Enable(gl.DEPTH_TEST)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	logger.LOG.Info().Msg("Setting callbacks")
+	sprites.InitRender()
+	sprites.InitShaderScreen(1280, 960)
+
+	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)
-	window.SetCursorPosCallback(debugMousePosCallback)
-	// window.SetCursorPosCallback(cursor.UpdateMousePosCallback)
+	window.SetCursorPosCallback(cursor.UpdateMousePosCallback)
 	window.SetKeyCallback(inputs.InputKeysCallback)
 	window.SetMouseButtonCallback(inputs.InputMouseCallback)
 
 	window.Focus()
 
 	return window
-}
-
-func debugMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
-	w.SetCursorPos(0, 0)
-	logger.LOG.Debug().Msgf("Mouse is at (%v, %v)", xpos, ypos)
 }
 
 func captureMouseFocusCallback(w *glfw.Window, focused bool) {

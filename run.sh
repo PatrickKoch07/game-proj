@@ -2,5 +2,6 @@
 rm -f game.exe
 export CC=x86_64-w64-mingw32-gcc
 export CXX=x86_64-w64-mingw32-g++
+export GODEBUG=cgocheck=1
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -o game.exe main.go
 ./game.exe

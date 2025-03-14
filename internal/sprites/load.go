@@ -42,19 +42,19 @@ func loadTextures(relativePath string) (*image.RGBA, error) {
 	}
 	defer fileReader.Close()
 
-	img, _, err := image.Decode(fileReader)
+	raw_image, _, err := image.Decode(fileReader)
 	if err != nil {
 		logger.LOG.Fatal().Msgf("Opening texture file %v failed", relativePath)
 		return nil, err
 	}
-	b := img.Bounds()
+	b := raw_image.Bounds()
 
-	if sz := (b.Max.Y - b.Min.Y) * (b.Max.X - b.Min.X); sz > (1280 * 960) {
-		logger.LOG.Fatal().Msgf("File to load has too mcuh data: %v bytes", sz)
+	if sz := (b.Max.Y - b.Min.Y) * (b.Max.X - b.Min.X); sz > (screenWidth * screenHeight) {
+		logger.LOG.Fatal().Msgf("File to load has too much data: %v bytes", sz)
 		return nil, err
 	}
 
-	m := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-	draw.Draw(m, m.Bounds(), img, b.Min, draw.Src)
-	return nil, nil
+	rgba_image := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(rgba_image, rgba_image.Bounds(), raw_image, b.Min, draw.Src)
+	return rgba_image, nil
 }
