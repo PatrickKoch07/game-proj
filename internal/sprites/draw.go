@@ -10,18 +10,17 @@ import (
 )
 
 type Sprite struct {
-	// objects that wish to be draw should have this
 	ShaderId  uint32
 	TextureId uint32
-
-	// other params to follow
+	// Where the origin of the object is on the screen (top left is 0.0, 0.0)
 	ScreenX float32
 	ScreenY float32
-
+	// from 0.0 to 1.0, Where the origin of the object is on the sprite (top left is 0.0, 0.0)
 	OriginSpriteX float32
 	OriginSpriteY float32
-	SpriteWidth   float32
-	SpriteHeight  float32
+	// How many pixels is the object
+	SpriteWidth  float32
+	SpriteHeight float32
 }
 
 var drawQueue *list.List
@@ -162,7 +161,7 @@ func initDrawQueue() {
 
 func (s *Sprite) getShaderOriginInScreenSpace() (x float32, y float32) {
 	// shader origin is defined as bottom left.
-	x = s.ScreenX - s.OriginSpriteX
-	y = s.ScreenY + s.SpriteHeight - s.OriginSpriteY
+	x = s.ScreenX - s.OriginSpriteX*s.SpriteWidth
+	y = s.ScreenY - s.OriginSpriteY*s.SpriteHeight
 	return x, y
 }
