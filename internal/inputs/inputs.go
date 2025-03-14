@@ -34,10 +34,10 @@ type inputManager struct {
 }
 
 func GetInputManager() *inputManager {
-	if singletonInputManager == nil {
+	if inputManagerObj == nil {
 		initInputManager()
 	}
-	return singletonInputManager
+	return inputManagerObj
 }
 
 func GetKeyState(key glfw.Key) (KeyState, bool) {
@@ -185,7 +185,7 @@ func InputMouseCallback(
 // 10 seems like a large number for every frame's worth of inputs
 const inputManagerQueueSize int = 10
 
-var singletonInputManager *inputManager
+var inputManagerObj *inputManager
 
 func init() {
 	initInputManager()
@@ -194,26 +194,26 @@ func init() {
 func initInputManager() {
 	logger.LOG.Info().Msg("Creating new Input Manager!")
 
-	singletonInputManager = new(inputManager)
-	singletonInputManager.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
+	inputManagerObj = new(inputManager)
+	inputManagerObj.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
 
-	singletonInputManager.keyStates = make(map[glfw.Key]KeyState)
-	singletonInputManager.keyStates[glfw.KeyW] = Inactive
-	singletonInputManager.keyStates[glfw.KeyA] = Inactive
-	singletonInputManager.keyStates[glfw.KeyS] = Inactive
-	singletonInputManager.keyStates[glfw.KeyD] = Inactive
-	singletonInputManager.keyStates[glfw.KeyEscape] = Inactive
-	singletonInputManager.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = Inactive
-	singletonInputManager.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = Inactive
+	inputManagerObj.keyStates = make(map[glfw.Key]KeyState)
+	inputManagerObj.keyStates[glfw.KeyW] = Inactive
+	inputManagerObj.keyStates[glfw.KeyA] = Inactive
+	inputManagerObj.keyStates[glfw.KeyS] = Inactive
+	inputManagerObj.keyStates[glfw.KeyD] = Inactive
+	inputManagerObj.keyStates[glfw.KeyEscape] = Inactive
+	inputManagerObj.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = Inactive
+	inputManagerObj.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = Inactive
 
-	singletonInputManager.keyListeners = make(map[glfw.Key]*list.List)
-	singletonInputManager.keyListeners[glfw.KeyW] = list.New()
-	singletonInputManager.keyListeners[glfw.KeyA] = list.New()
-	singletonInputManager.keyListeners[glfw.KeyS] = list.New()
-	singletonInputManager.keyListeners[glfw.KeyD] = list.New()
-	singletonInputManager.keyListeners[glfw.KeyEscape] = list.New()
-	singletonInputManager.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = list.New()
-	singletonInputManager.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = list.New()
+	inputManagerObj.keyListeners = make(map[glfw.Key]*list.List)
+	inputManagerObj.keyListeners[glfw.KeyW] = list.New()
+	inputManagerObj.keyListeners[glfw.KeyA] = list.New()
+	inputManagerObj.keyListeners[glfw.KeyS] = list.New()
+	inputManagerObj.keyListeners[glfw.KeyD] = list.New()
+	inputManagerObj.keyListeners[glfw.KeyEscape] = list.New()
+	inputManagerObj.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = list.New()
+	inputManagerObj.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = list.New()
 }
 
 func MouseButtonToKey(m glfw.MouseButton) int {
