@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"errors"
 	"reflect"
+	"sync"
 	"weak"
 
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -110,6 +111,7 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 }
 
 func (k *inputManager) Notify() {
+	var wg sync.WaitGroup
 	// for all Actions in input queue
 	for ka, ok := k.dirtyPop(); ok; ka, ok = k.dirtyPop() {
 		listenerQueue, ok := k.keyListeners[ka.Key]
@@ -133,12 +135,13 @@ func (k *inputManager) Notify() {
 					k.keyListeners[ka.Key].Remove(listElem)
 				} else {
 					logger.LOG.Debug().Msgf(
-						"(Key: %v) Input Manager notifying: %v (%v)",
+						"(Key: %v) Input Manager notifying: %v",
 						ka.Key,
-						listener,
-						reflect.TypeOf(listener).Name(),
+						strongListener,
 					)
-					go (*strongListener).OnKeyAction(ka.Action)
+
+					wg.Add(1)
+					go func() { defer wg.Done(); (*strongListener).OnKeyAction(ka.Action) }()
 				}
 			default:
 				logger.LOG.Fatal().Msgf(
@@ -152,6 +155,8 @@ func (k *inputManager) Notify() {
 			listElem = nextListElem
 		}
 	}
+	wg.Wait()
+
 	// because dirty pop
 	k.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
 }
