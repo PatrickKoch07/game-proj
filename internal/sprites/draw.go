@@ -12,6 +12,7 @@ import (
 type Sprite struct {
 	ShaderId uint32
 	Tex      Texture
+	VAO      uint32
 	// Where the origin of the object is on the screen (top left is 0.0, 0.0)
 	ScreenX float32
 	ScreenY float32
@@ -20,37 +21,40 @@ type Sprite struct {
 	OriginSpriteY float32
 }
 
-func CreateSprite(
-	vertexShaderRelPath string,
-	fragShaderRelPath string,
-	textureRelPath string,
-	textureCoords [12]float32,
-	screenX float32,
-	screenY float32,
-	spriteOriginX float32,
-	spriteOriginY float32,
-) (*Sprite, error) {
+type SpriteInitParams struct {
+	VertexShaderRelPath string
+	FragShaderRelPath   string
+	TextureRelPath      string
+	TextureCoords       [12]float32
+	ScreenX             float32
+	ScreenY             float32
+	SpriteOriginX       float32
+	SpriteOriginY       float32
+}
+
+func CreateSprite(sP *SpriteInitParams) (*Sprite, error) {
 	logger.LOG.Info().Msg("Creating new sprite")
 
 	sprite := Sprite{}
 
 	var ok bool
-	sprite.ShaderId, ok = MakeShader(vertexShaderRelPath, fragShaderRelPath)
+	sprite.ShaderId, ok = MakeShader(sP.VertexShaderRelPath, sP.FragShaderRelPath)
 	if !ok {
 		return nil, errors.New("error making shader")
 	}
 	var err error
-	sprite.Tex, err = GenerateTexture(textureRelPath, textureCoords)
+	sprite.VAO = setVAO(sP.TextureCoords)
+	sprite.Tex, err = GenerateTexture(sP.TextureRelPath)
 	if err != nil {
 		return nil, errors.New("error generating texture")
 	}
 
 	// default position in screen: top left
-	sprite.ScreenX = screenX
-	sprite.ScreenY = screenY
+	sprite.ScreenX = sP.ScreenX
+	sprite.ScreenY = sP.ScreenY
 	// origin of sprite: upper left
-	sprite.OriginSpriteX = spriteOriginX
-	sprite.OriginSpriteY = spriteOriginY
+	sprite.OriginSpriteX = sP.SpriteOriginX
+	sprite.OriginSpriteY = sP.SpriteOriginY
 
 	return &sprite, nil
 }
@@ -136,13 +140,13 @@ func DrawDrawQueue() {
 			screenX, screenY := strongSprite.getShaderOriginInScreenSpace()
 
 			gl.UseProgram(strongSprite.ShaderId)
-			SetTransform(strongSprite.ShaderId, screenX, screenY)
-			SetScale(strongSprite.ShaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
+			setTransform(strongSprite.ShaderId, screenX, screenY)
+			setScale(strongSprite.ShaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
 
 			gl.ActiveTexture(gl.TEXTURE0)
 			gl.BindTexture(gl.TEXTURE_2D, strongSprite.Tex.TextureId)
 
-			gl.BindVertexArray(strongSprite.Tex.VAO)
+			gl.BindVertexArray(strongSprite.VAO)
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 			gl.BindVertexArray(0)
 		}
@@ -159,6 +163,7 @@ func initDrawQueue() {
 	drawQueue = list.New()
 }
 
+// technically shouldn't be part of sprite struct? but oh well, nobody else should use this anyway
 func (s *Sprite) getShaderOriginInScreenSpace() (x float32, y float32) {
 	// shader origin is defined as bottom left.
 	x = s.ScreenX - s.OriginSpriteX*s.Tex.DimX

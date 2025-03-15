@@ -53,9 +53,9 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 
-		inputs.GetInputManager().Notify()
+		inputs.Notify()
 		// check if user requested the game to close through the UI
-		if ui.GetMainMenu().ShouldClose() {
+		if ui.CloseRequested() {
 			window.SetShouldClose(true)
 		}
 	}

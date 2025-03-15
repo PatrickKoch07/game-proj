@@ -79,7 +79,7 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 
-		inputs.GetInputManager().Notify()
+		inputs.Notify()
 	}
 	logger.LOG.Info().Msgf("This is still being used:%v. %v", &myDummyObj.i, myDummyObj.s)
 }

@@ -20,7 +20,7 @@ type mainMenu struct {
 
 var mainMenuObj *mainMenu
 
-func GetMainMenu() *mainMenu {
+func getMainMenu() *mainMenu {
 	if mainMenuObj == nil {
 		InitMainMenu()
 	}
@@ -31,7 +31,7 @@ func InitMainMenu() {
 	mainMenuObj = new(mainMenu)
 	mainMenuObj.rendering = false
 
-	playButton, err := CreateButton(64, 256, 512, 640)
+	playButton, err := createButton(64, 256, 512, 640)
 	if err != nil {
 		logger.LOG.Error().Err(err)
 		mainMenuObj = nil
@@ -40,7 +40,7 @@ func InitMainMenu() {
 	mainMenuObj.playButton = playButton
 	mainMenuObj.playButton.OnPress = dummyFunc
 
-	exitButton, err := CreateButton(64, 256, 512, 756)
+	exitButton, err := createButton(64, 256, 512, 756)
 	if err != nil {
 		logger.LOG.Error().Err(err)
 		mainMenuObj = nil
@@ -60,8 +60,8 @@ func InitMainMenu() {
 	}
 }
 
-func (mm *mainMenu) ShouldClose() bool {
-	return mm.exitRequested
+func CloseRequested() bool {
+	return getMainMenu().exitRequested
 }
 
 func (mm *mainMenu) OnKeyAction(a glfw.Action) {
@@ -69,31 +69,31 @@ func (mm *mainMenu) OnKeyAction(a glfw.Action) {
 		return
 	}
 	if mm.rendering {
-		mm.stopRenderMainMenu()
+		stopRenderMainMenu()
 	} else {
-		mm.renderMainMenu()
+		renderMainMenu()
 	}
 	mm.rendering = !mm.rendering
 }
 
-func (mm *mainMenu) renderMainMenu() {
-	sprites.AddToDrawingQueue(weak.Make(mm.playButton.Sprite))
-	sprites.AddToDrawingQueue(weak.Make(mm.exitButton.Sprite))
+func renderMainMenu() {
+	sprites.AddToDrawingQueue(weak.Make(getMainMenu().playButton.Sprite))
+	sprites.AddToDrawingQueue(weak.Make(getMainMenu().exitButton.Sprite))
 }
 
-func (mm *mainMenu) stopRenderMainMenu() {
-	ok := sprites.RemoveFromDrawingQueue(weak.Make(mm.playButton.Sprite))
+func stopRenderMainMenu() {
+	ok := sprites.RemoveFromDrawingQueue(weak.Make(getMainMenu().playButton.Sprite))
 	if !ok {
 		logger.LOG.Error().Msg("Had trouble removing main menu play button")
 	}
-	ok = sprites.RemoveFromDrawingQueue(weak.Make(mm.exitButton.Sprite))
+	ok = sprites.RemoveFromDrawingQueue(weak.Make(getMainMenu().exitButton.Sprite))
 	if !ok {
 		logger.LOG.Error().Msg("Had trouble removing main menu exit button")
 	}
 }
 
 func exitGame(_, _ float32) {
-	GetMainMenu().exitRequested = true
+	getMainMenu().exitRequested = true
 	// pretty sure this should only get called on the main thread...
 	// glfw.GetCurrentContext().SetShouldClose(true)
 }

@@ -14,7 +14,7 @@ var gameCursor *sprites.Sprite
 
 func GetCursor() *sprites.Sprite {
 	if gameCursor == nil {
-		InitCursor()
+		initCursor()
 	}
 	return gameCursor
 }
@@ -30,18 +30,20 @@ func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 	// logger.LOG.Debug().Msgf("Mouse at (%v, %v)", GetCursor().Sprite.ScreenX, GetCursor().Sprite.ScreenY)
 }
 
-func InitCursor() {
+func initCursor() {
 	logger.LOG.Info().Msg("Creating new cursor")
 
 	sprite, err := sprites.CreateSprite(
-		"cursorShader.vs",
-		"alphaTextureShader.fs",
-		"ui/cursor.png",
-		sprites.TexCoordOneSpritePerImg,
-		0.0,
-		0.0,
-		0.0,
-		0.0,
+		&sprites.SpriteInitParams{
+			VertexShaderRelPath: "cursorShader.vs",
+			FragShaderRelPath:   "alphaTextureShader.fs",
+			TextureRelPath:      "ui/cursor.png",
+			TextureCoords:       sprites.TexCoordOneSpritePerImg,
+			ScreenX:             0.0,
+			ScreenY:             0.0,
+			SpriteOriginX:       0.0,
+			SpriteOriginY:       0.0,
+		},
 	)
 	if err != nil {
 		logger.LOG.Error().Msg("Cursor failed to be made.")

@@ -19,19 +19,21 @@ type button struct {
 	OnRelease     func(float32, float32)
 }
 
-func CreateButton(height, width, screenX, screenY float32) (*button, error) {
+func createButton(height, width, screenX, screenY float32) (*button, error) {
 	logger.LOG.Info().Msg("Creating new button")
 
 	b := new(button)
 	sprite, err := sprites.CreateSprite(
-		"uiShader.vs",
-		"alphaTextureShader.fs",
-		"ui/button.png",
-		sprites.TexCoordOneSpritePerImg,
-		screenX,
-		screenY,
-		0.0,
-		0.0,
+		&sprites.SpriteInitParams{
+			VertexShaderRelPath: "uiShader.vs",
+			FragShaderRelPath:   "alphaTextureShader.fs",
+			TextureRelPath:      "ui/button.png",
+			TextureCoords:       sprites.TexCoordOneSpritePerImg,
+			ScreenX:             screenX,
+			ScreenY:             screenY,
+			SpriteOriginX:       0.0,
+			SpriteOriginY:       0.0,
+		},
 	)
 	if err != nil {
 		return nil, err

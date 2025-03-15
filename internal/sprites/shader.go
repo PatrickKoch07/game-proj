@@ -18,7 +18,6 @@ type Texture struct {
 	TextureId uint32
 	DimX      float32
 	DimY      float32
-	VAO       uint32
 }
 
 var screenHeight int
@@ -29,7 +28,7 @@ func InitShaderScreen(sWidth int, sHeight int) {
 	screenWidth = sWidth
 }
 
-func SetTransform(
+func setTransform(
 	shaderId uint32, screenX float32, screenY float32,
 ) {
 	gl.UseProgram(shaderId)
@@ -50,7 +49,7 @@ func SetTransform(
 	)
 }
 
-func SetScale(shaderId uint32, stretchX float32, stretchY float32) {
+func setScale(shaderId uint32, stretchX float32, stretchY float32) {
 	gl.UseProgram(shaderId)
 	scale := [16]float32{
 		stretchX, 0.0, 0.0, 0.0,
@@ -86,6 +85,8 @@ func setProjection(shaderId uint32) {
 }
 
 func setVAO(textureCoords [12]float32) uint32 {
+	// I don't think the texture coords should ever be negative? so 0.0 means unset
+
 	logger.LOG.Info().Msg("Initializing sprite VAO & VBO")
 	var VAO, VBO uint32
 	var spritePosCoords [12]float32 = [12]float32{
@@ -236,15 +237,12 @@ func linkShader(shaderVertex uint32, shaderFragment uint32) (shaderId uint32, ok
 }
 
 func GenerateTexture(
-	relativePath string, textureCoords [12]float32,
+	relativePath string,
 ) (
 	Texture, error,
 ) {
 	logger.LOG.Debug().Msg("Creating new texture")
 	tex := Texture{}
-
-	vao := setVAO(textureCoords)
-	tex.VAO = vao
 
 	img, err := loadTextures(relativePath)
 	if err != nil {

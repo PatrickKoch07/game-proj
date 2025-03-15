@@ -34,7 +34,7 @@ type inputManager struct {
 	keyListeners   map[glfw.Key]*list.List
 }
 
-func GetInputManager() *inputManager {
+func getInputManager() *inputManager {
 	if inputManagerObj == nil {
 		initInputManager()
 	}
@@ -42,18 +42,18 @@ func GetInputManager() *inputManager {
 }
 
 func GetKeyState(key glfw.Key) (KeyState, bool) {
-	value, ok := GetInputManager().keyStates[key]
+	value, ok := getInputManager().keyStates[key]
 	return value, ok
 }
 
 func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
-	if _, ok := GetInputManager().keyListeners[key]; !ok {
+	if _, ok := getInputManager().keyListeners[key]; !ok {
 		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
 
-	GetInputManager().keyListeners[key].PushFront(w)
-	if GetInputManager().keyListeners[key].Len() > 10 {
+	getInputManager().keyListeners[key].PushFront(w)
+	if getInputManager().keyListeners[key].Len() > 10 {
 		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
 	}
 	logger.LOG.Debug().Msgf("(Key: %v) Added subscriber: %v(%v)",
@@ -65,7 +65,7 @@ func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
 }
 
 func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
-	listenerList, ok := GetInputManager().keyListeners[key]
+	listenerList, ok := getInputManager().keyListeners[key]
 	if !ok {
 		return errors.New("key does not exist")
 	}
@@ -77,19 +77,19 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 		switch listener := listElem.Value.(type) {
 		case nil:
 			logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-			GetInputManager().keyListeners[key].Remove(listElem)
+			getInputManager().keyListeners[key].Remove(listElem)
 		case weak.Pointer[InputListener]:
 			strongListener := listener.Value()
 			if strongListener == nil {
 				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-				GetInputManager().keyListeners[key].Remove(listElem)
+				getInputManager().keyListeners[key].Remove(listElem)
 			} else if listener == w {
 				logger.LOG.Debug().Msgf("(Key: %v) Removing subscriber: %v(%v)",
 					key,
 					w.Value(),
 					reflect.TypeOf(*w.Value()),
 				)
-				GetInputManager().keyListeners[key].Remove(listElem)
+				getInputManager().keyListeners[key].Remove(listElem)
 				return nil
 			}
 		default:
@@ -110,7 +110,8 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 	return errors.New("no listener to be removed")
 }
 
-func (k *inputManager) Notify() {
+func Notify() {
+	k := getInputManager()
 	var wg sync.WaitGroup
 	// for all Actions in input queue
 	for ka, ok := k.dirtyPop(); ok; ka, ok = k.dirtyPop() {
@@ -168,7 +169,7 @@ func InputKeysCallback(
 		return
 	}
 
-	err := GetInputManager().push(KeyAction{Key: key, Action: action})
+	err := getInputManager().push(KeyAction{Key: key, Action: action})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
@@ -181,7 +182,7 @@ func InputMouseCallback(
 		return
 	}
 
-	err := GetInputManager().push(KeyAction{Key: glfw.Key(MouseButtonToKey(button)), Action: action})
+	err := getInputManager().push(KeyAction{Key: glfw.Key(MouseButtonToKey(button)), Action: action})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
