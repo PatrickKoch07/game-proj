@@ -8,10 +8,10 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
+	"github.com/PatrickKoch07/game-proj/internal/ui"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
-	"github.com/rs/zerolog"
 )
 
 var TARGET_FPS int = 60
@@ -54,6 +54,10 @@ func main() {
 		glfw.PollEvents()
 
 		inputs.GetInputManager().Notify()
+		// check if user requested the game to close through the UI
+		if ui.GetMainMenu().ShouldClose() {
+			window.SetShouldClose(true)
+		}
 	}
 }
 
@@ -76,8 +80,8 @@ func createWindow() *glfw.Window {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	sprites.InitRender()
 	sprites.InitShaderScreen(1280, 960)
+	ui.InitMainMenu()
 
 	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)
@@ -101,7 +105,7 @@ func captureMouseFocusCallback(w *glfw.Window, focused bool) {
 
 func setupFramerateCap() func() {
 	var last_frame_start_time time.Time
-	fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
+	// fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
 
 	return func() {
 		targetFrameDur := time.Duration(int(1.0/float64(TARGET_FPS)*1000.0) * int(time.Millisecond))
@@ -109,13 +113,21 @@ func setupFramerateCap() func() {
 		<-time.NewTicker(waitTime).C
 
 		// below just for displaying framerate
-		fps := 1.0 / float64(time.Now().UnixMilli()-last_frame_start_time.UnixMilli()) * 1000.0
-		fpsLogger.Debug().Msgf(
-			"Frame started. Last fps: %v (target: %v). Waited for %v%% of frametime",
-			int(fps),
-			TARGET_FPS,
-			int(float64(waitTime)/float64(targetFrameDur)*100.0),
-		)
+		if waitProp := float64(waitTime) / float64(targetFrameDur); waitProp < 0.2 {
+			fps := 1.0 / float64(time.Now().UnixMilli()-last_frame_start_time.UnixMilli()) * 1000.0
+			logger.LOG.Warn().Msgf(
+				"Had slow frame. Last fps: %v (target: %v). Waited for %v%% of frametime",
+				int(fps),
+				TARGET_FPS,
+				int(waitProp*100.0),
+			)
+		}
+		// fpsLogger.Debug().Msgf(
+		// 	"Frame started. Last fps: %v (target: %v). Waited for %v%% of frametime",
+		// 	int(fps),
+		// 	TARGET_FPS,
+		// 	int(float64(waitTime)/float64(targetFrameDur)*100.0),
+		// )
 
 		last_frame_start_time = time.Now()
 	}
