@@ -58,3 +58,13 @@ func loadTextures(relativePath string) (*image.RGBA, error) {
 	draw.Draw(rgba_image, rgba_image.Bounds(), raw_image, b.Min, draw.Src)
 	return rgba_image, nil
 }
+
+var TexCoordOneSpritePerImg [12]float32 = [12]float32{
+	0.0, 0.0,
+	0.0, 1.0,
+	1.0, 1.0,
+
+	0.0, 0.0,
+	1.0, 1.0,
+	1.0, 0.0,
+}

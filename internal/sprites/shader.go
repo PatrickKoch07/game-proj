@@ -14,6 +14,21 @@ import (
 	NEED WAY TO STORE ALREADY LOADED TEXTURES AND SHADERS
 */
 
+type Texture struct {
+	TextureId uint32
+	DimX      float32
+	DimY      float32
+	VAO       uint32
+}
+
+var screenHeight int
+var screenWidth int
+
+func InitShaderScreen(sWidth int, sHeight int) {
+	screenHeight = sHeight
+	screenWidth = sWidth
+}
+
 func SetTransform(
 	shaderId uint32, screenX float32, screenY float32,
 ) {
@@ -35,7 +50,7 @@ func SetTransform(
 	)
 }
 
-func SetScale(shaderId uint32, stretchY float32, stretchX float32) {
+func SetScale(shaderId uint32, stretchX float32, stretchY float32) {
 	gl.UseProgram(shaderId)
 	scale := [16]float32{
 		stretchX, 0.0, 0.0, 0.0,
@@ -61,7 +76,6 @@ func setProjection(shaderId uint32) {
 		0.000000, 0.000000, 2.0 / float32(0.0-screenHeight), 1.000000,
 		0.000000, 0.000000, 0.000000, 1.000000,
 	}
-	logger.LOG.Error().Msgf("%v", proj)
 	var uniformName string = "projection"
 	gl.UniformMatrix4fv(
 		gl.GetUniformLocation(shaderId, utils.StringToUint8(&uniformName)),
@@ -69,6 +83,43 @@ func setProjection(shaderId uint32) {
 		true,
 		&proj[0],
 	)
+}
+
+func setVAO(textureCoords [12]float32) uint32 {
+	logger.LOG.Info().Msg("Initializing sprite VAO & VBO")
+	var VAO, VBO uint32
+	var spritePosCoords [12]float32 = [12]float32{
+		// Bottom left starting position
+		0.0, 0.0,
+		0.0, 1.0,
+		1.0, 1.0,
+
+		0.0, 0.0,
+		1.0, 1.0,
+		1.0, 0.0,
+	}
+	var vertexCoords [24]float32
+	// Position X Y, Texture X Y
+	for i := 0; i < 6; i++ {
+		vertexCoords[4*i] = spritePosCoords[2*i]
+		vertexCoords[4*i+1] = spritePosCoords[2*i+1]
+
+		vertexCoords[4*i+2] = textureCoords[2*i]
+		vertexCoords[4*i+3] = textureCoords[2*i+1]
+	}
+	gl.GenVertexArrays(1, &VAO)
+	gl.GenBuffers(1, &VBO)
+
+	gl.BindVertexArray(VAO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
+
+	gl.BufferData(gl.ARRAY_BUFFER, 24*4, unsafe.Pointer(&vertexCoords[0]), gl.STATIC_DRAW)
+	gl.VertexAttribPointer(0, 4, gl.FLOAT, false, 4*4, nil)
+	gl.EnableVertexAttribArray(0)
+
+	// unbind
+	gl.BindVertexArray(0)
+	return VAO
 }
 
 func DeleteShaders(shaderIds ...uint32) {
@@ -184,26 +235,36 @@ func linkShader(shaderVertex uint32, shaderFragment uint32) (shaderId uint32, ok
 	return shaderId, true
 }
 
-func GenerateTexture(relativePath string) (TextId uint32, xDim int, yDim int, err error) {
+func GenerateTexture(
+	relativePath string, textureCoords [12]float32,
+) (
+	Texture, error,
+) {
 	logger.LOG.Debug().Msg("Creating new texture")
+	tex := Texture{}
+
+	vao := setVAO(textureCoords)
+	tex.VAO = vao
 
 	img, err := loadTextures(relativePath)
 	if err != nil {
-		return 0, 0, 0, err
+		return Texture{}, err
 	}
+	tex.DimX = float32(img.Bounds().Dx())
+	tex.DimY = float32(img.Bounds().Dy())
 	p := runtime.Pinner{}
 	defer p.Unpin()
 	p.Pin(&img.Pix[0])
 
-	gl.GenTextures(1, &TextId)
-	gl.BindTexture(gl.TEXTURE_2D, TextId)
+	gl.GenTextures(1, &tex.TextureId)
+	gl.BindTexture(gl.TEXTURE_2D, tex.TextureId)
 	// unbind texture
 	defer gl.BindTexture(gl.TEXTURE_2D, 0)
 
-	gl.TextureParameteri(TextId, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TextureParameteri(TextId, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TextureParameteri(TextId, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-	gl.TextureParameteri(TextId, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
@@ -217,13 +278,5 @@ func GenerateTexture(relativePath string) (TextId uint32, xDim int, yDim int, er
 		unsafe.Pointer(&img.Pix[0]),
 	)
 
-	return TextId, img.Bounds().Dx(), img.Bounds().Dy(), nil
-}
-
-var screenHeight int
-var screenWidth int
-
-func InitShaderScreen(sWidth int, sHeight int) {
-	screenHeight = sHeight
-	screenWidth = sWidth
+	return tex, nil
 }

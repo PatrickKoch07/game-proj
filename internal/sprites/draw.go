@@ -2,7 +2,7 @@ package sprites
 
 import (
 	"container/list"
-	"unsafe"
+	"errors"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -10,17 +10,49 @@ import (
 )
 
 type Sprite struct {
-	ShaderId  uint32
-	TextureId uint32
+	ShaderId uint32
+	Tex      Texture
 	// Where the origin of the object is on the screen (top left is 0.0, 0.0)
 	ScreenX float32
 	ScreenY float32
 	// from 0.0 to 1.0, Where the origin of the object is on the sprite (top left is 0.0, 0.0)
 	OriginSpriteX float32
 	OriginSpriteY float32
-	// How many pixels is the object
-	SpriteWidth  float32
-	SpriteHeight float32
+}
+
+func CreateSprite(
+	vertexShaderRelPath string,
+	fragShaderRelPath string,
+	textureRelPath string,
+	textureCoords [12]float32,
+	screenX float32,
+	screenY float32,
+	spriteOriginX float32,
+	spriteOriginY float32,
+) (*Sprite, error) {
+	logger.LOG.Info().Msg("Creating new sprite")
+
+	sprite := Sprite{}
+
+	var ok bool
+	sprite.ShaderId, ok = MakeShader(vertexShaderRelPath, fragShaderRelPath)
+	if !ok {
+		return nil, errors.New("error making shader")
+	}
+	var err error
+	sprite.Tex, err = GenerateTexture(textureRelPath, textureCoords)
+	if err != nil {
+		return nil, errors.New("error generating texture")
+	}
+
+	// default position in screen: top left
+	sprite.ScreenX = screenX
+	sprite.ScreenY = screenY
+	// origin of sprite: upper left
+	sprite.OriginSpriteX = spriteOriginX
+	sprite.OriginSpriteY = spriteOriginY
+
+	return &sprite, nil
 }
 
 var drawQueue *list.List
@@ -30,42 +62,6 @@ func getDrawQueue() *list.List {
 		initDrawQueue()
 	}
 	return drawQueue
-}
-
-var rectangleSpritesVerts [24]float32 = [24]float32{
-	// Position for the first two, Texture for the second two
-	// Bottom left starting position
-	0.0, 0.0, 0.0, 0.0,
-	0.0, 1.0, 0.0, 1.0,
-	1.0, 1.0, 1.0, 1.0,
-
-	0.0, 0.0, 0.0, 0.0,
-	1.0, 1.0, 1.0, 1.0,
-	1.0, 0.0, 1.0, 0.0,
-}
-
-/*
-	TEMP: I have the vbo & vao here assuming one png per sprite (no sprite sheets!!)
-*/
-
-var vao uint32
-
-func InitRender() {
-	logger.LOG.Info().Msg("Initializing sprite VAO & VBO")
-
-	var vbo uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.GenBuffers(1, &vbo)
-
-	gl.BindVertexArray(vao)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-
-	gl.BufferData(gl.ARRAY_BUFFER, 24*4, unsafe.Pointer(&rectangleSpritesVerts[0]), gl.STATIC_DRAW)
-	gl.VertexAttribPointer(0, 4, gl.FLOAT, false, 4*4, nil)
-	gl.EnableVertexAttribArray(0)
-
-	// unbind
-	gl.BindVertexArray(0)
 }
 
 /*
@@ -82,14 +78,20 @@ func AddToDrawingQueue(w weak.Pointer[Sprite]) {
 		logger.LOG.Warn().Msgf("Draw Queue is getting long. Len: %v", drawQueue.Len())
 	}
 	logger.LOG.Debug().Msgf(
-		"Added draw object to the draw queue. ShaderID: %v, TextureID: %v",
+		"Added draw object to the draw queue (ShaderID: %v, TextureID: %v): %v",
 		w.Value().ShaderId,
-		w.Value().TextureId,
+		w.Value().Tex.TextureId,
+		w,
 	)
 }
 
 func RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
-	logger.LOG.Debug().Msgf("Manually removing object from the drawQueue: %v", w)
+	logger.LOG.Debug().Msgf(
+		"Manually removing object from the drawQueue (ShaderID: %v, TextureID: %v): %v",
+		w.Value().ShaderId,
+		w.Value().Tex.TextureId,
+		w,
+	)
 
 	listElem := getDrawQueue().Front()
 	for listElem != nil {
@@ -131,19 +133,17 @@ func DrawDrawQueue() {
 			logger.LOG.Debug().Msg("Removed a nil draw Object (object got Gc'd)")
 			getDrawQueue().Remove(listElem)
 		} else {
-			vertexArray := vao                              // strongSprite.VertexArray
-			triangleCount := len(rectangleSpritesVerts) / 4 // strongSprite.TriangleCount
 			screenX, screenY := strongSprite.getShaderOriginInScreenSpace()
 
 			gl.UseProgram(strongSprite.ShaderId)
 			SetTransform(strongSprite.ShaderId, screenX, screenY)
-			SetScale(strongSprite.ShaderId, strongSprite.SpriteWidth, strongSprite.SpriteHeight)
+			SetScale(strongSprite.ShaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
 
 			gl.ActiveTexture(gl.TEXTURE0)
-			gl.BindTexture(gl.TEXTURE_2D, strongSprite.TextureId)
+			gl.BindTexture(gl.TEXTURE_2D, strongSprite.Tex.TextureId)
 
-			gl.BindVertexArray(vertexArray)
-			gl.DrawArrays(gl.TRIANGLES, 0, int32(triangleCount))
+			gl.BindVertexArray(strongSprite.Tex.VAO)
+			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 			gl.BindVertexArray(0)
 		}
 		listElem = nextListElem
@@ -161,7 +161,7 @@ func initDrawQueue() {
 
 func (s *Sprite) getShaderOriginInScreenSpace() (x float32, y float32) {
 	// shader origin is defined as bottom left.
-	x = s.ScreenX - s.OriginSpriteX*s.SpriteWidth
-	y = s.ScreenY - s.OriginSpriteY*s.SpriteHeight
+	x = s.ScreenX - s.OriginSpriteX*s.Tex.DimX
+	y = s.ScreenY - s.OriginSpriteY*s.Tex.DimY
 	return x, y
 }
