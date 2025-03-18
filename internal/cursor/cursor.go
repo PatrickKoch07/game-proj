@@ -33,16 +33,28 @@ func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 func initCursor() {
 	logger.LOG.Info().Msg("Creating new cursor")
 
+	// temp
+	sprites.MakeShader(
+		sprites.ShaderFiles{
+			VertexPath:   "cursorShader.vs",
+			FragmentPath: "alphaTextureShader.fs",
+		})
+	sprites.MakeTexture("ui/cursor.png")
+	sprites.MakeVAO(sprites.TexCoordOneSpritePerImg)
+	// end temp
+
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
-			VertexShaderRelPath: "cursorShader.vs",
-			FragShaderRelPath:   "alphaTextureShader.fs",
-			TextureRelPath:      "ui/cursor.png",
-			TextureCoords:       sprites.TexCoordOneSpritePerImg,
-			ScreenX:             0.0,
-			ScreenY:             0.0,
-			SpriteOriginX:       0.0,
-			SpriteOriginY:       0.0,
+			ShaderRelPaths: sprites.ShaderFiles{
+				VertexPath:   "cursorShader.vs",
+				FragmentPath: "alphaTextureShader.fs",
+			},
+			TextureRelPath: "ui/cursor.png",
+			TextureCoords:  sprites.TexCoordOneSpritePerImg,
+			ScreenX:        0.0,
+			ScreenY:        0.0,
+			SpriteOriginX:  0.0,
+			SpriteOriginY:  0.0,
 		},
 	)
 	if err != nil {

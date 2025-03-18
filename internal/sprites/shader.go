@@ -10,22 +10,112 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
-/*
-	NEED WAY TO STORE ALREADY LOADED TEXTURES AND SHADERS
-*/
+var screenHeight int
+var screenWidth int
+var activeGraphicsObjects *graphicsObjects
 
-type Texture struct {
-	TextureId uint32
+func SetShaderScreenSize(sWidth int, sHeight int) {
+	screenHeight = sHeight
+	screenWidth = sWidth
+}
+
+type ShaderFiles struct {
+	VertexPath   string
+	FragmentPath string
+}
+
+func DeleteShaders(shaderFiles ...ShaderFiles) {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for _, shaderFile := range shaderFiles {
+		shaderId := activeGraphicsObjs.CurrentlyActiveShaders[shaderFile.VertexPath+shaderFile.FragmentPath]
+		delete(activeGraphicsObjs.CurrentlyActiveShaders, shaderFile.VertexPath+shaderFile.FragmentPath)
+		gl.DeleteProgram(shaderId)
+	}
+}
+
+func DeleteTextures(relPaths ...string) {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for _, relPath := range relPaths {
+		textureId := activeGraphicsObjs.CurrentlyActiveTextures[relPath]
+		delete(activeGraphicsObjs.CurrentlyActiveTextures, relPath)
+		gl.DeleteTextures(1, &textureId.textureId)
+	}
+}
+
+func DeleteVAO(manyTextureCoords ...[12]float32) {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for _, textureCoords := range manyTextureCoords {
+		vaoKey := utils.Float32SliceToString(textureCoords[:])
+		VAO := activeGraphicsObjs.CurrentlyActiveVAOs[vaoKey]
+		delete(activeGraphicsObjs.CurrentlyActiveVAOs, vaoKey)
+		gl.DeleteVertexArrays(1, &VAO)
+	}
+}
+
+type texture struct {
+	textureId uint32
 	DimX      float32
 	DimY      float32
 }
 
-var screenHeight int
-var screenWidth int
+func getTexture(
+	relativePath string, textureCoords [12]float32,
+) (
+	texture, bool,
+) {
+	// get textureId
+	tex, ok := getActiveGraphicsObjects().CurrentlyActiveTextures[relativePath]
+	if !ok {
+		return texture{}, ok
+	}
+	// VAO should consist of two triangles.
+	// First triangle will be the first three 2-D points provided
+	tex.DimX *= textureCoords[4] - textureCoords[2]
+	tex.DimY *= textureCoords[3] - textureCoords[1]
 
-func InitShaderScreen(sWidth int, sHeight int) {
-	screenHeight = sHeight
-	screenWidth = sWidth
+	return tex, true
+}
+
+func getShader(
+	shaderFiles ShaderFiles,
+) (shaderId uint32, ok bool) {
+	vShaderFileName := shaderFiles.VertexPath
+	fShaderFileName := shaderFiles.FragmentPath
+	shaderId, ok = getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName]
+	return shaderId, ok
+}
+
+func getVAO(textureCoords [12]float32) (uint32, bool) {
+	vaoKey := utils.Float32SliceToString(textureCoords[:])
+	vao, ok := getActiveGraphicsObjects().CurrentlyActiveVAOs[vaoKey]
+	return vao, ok
+}
+
+type graphicsObjects struct {
+	CurrentlyActiveShaders  map[string]uint32
+	CurrentlyActiveTextures map[string]texture
+	CurrentlyActiveVAOs     map[string]uint32
+}
+
+func initShader() {
+	activeGraphicsObjects = new(graphicsObjects)
+	activeGraphicsObjects.CurrentlyActiveShaders = make(map[string]uint32)
+	// 32 is the max set by openGL
+	activeGraphicsObjects.CurrentlyActiveTextures = make(map[string]texture, 32)
+	activeGraphicsObjects.CurrentlyActiveVAOs = make(map[string]uint32)
+}
+
+func getActiveGraphicsObjects() *graphicsObjects {
+	if activeGraphicsObjects == nil {
+		initShader()
+	}
+	return activeGraphicsObjects
 }
 
 func setTransform(
@@ -84,8 +174,8 @@ func setProjection(shaderId uint32) {
 	)
 }
 
-func setVAO(textureCoords [12]float32) uint32 {
-	// I don't think the texture coords should ever be negative? so 0.0 means unset
+func MakeVAO(textureCoords [12]float32) uint32 {
+	// NOT THREAD SAFE
 
 	logger.LOG.Info().Msg("Initializing sprite VAO & VBO")
 	var VAO, VBO uint32
@@ -120,23 +210,62 @@ func setVAO(textureCoords [12]float32) uint32 {
 
 	// unbind
 	gl.BindVertexArray(0)
+
+	vaoKey := utils.Float32SliceToString(textureCoords[:])
+	getActiveGraphicsObjects().CurrentlyActiveVAOs[vaoKey] = VAO
 	return VAO
 }
 
-func DeleteShaders(shaderIds ...uint32) {
-	for sid := range shaderIds {
-		gl.DeleteProgram(uint32(sid))
-	}
-}
+func MakeTexture(relativePath string) (texture, error) {
+	// NOT THREAD SAFE
 
-func DeleteTextures(textureIds ...uint32) {
-	numTextures := int32(len(textureIds))
-	gl.DeleteTextures(numTextures, &textureIds[0])
+	logger.LOG.Debug().Msg("Creating new texture")
+	tex := texture{}
+
+	img, err := loadTextures(relativePath)
+	if err != nil {
+		return texture{}, err
+	}
+	tex.DimX = float32(img.Bounds().Dx())
+	tex.DimY = float32(img.Bounds().Dy())
+	p := runtime.Pinner{}
+	defer p.Unpin()
+	p.Pin(&img.Pix[0])
+
+	gl.GenTextures(1, &tex.textureId)
+	gl.BindTexture(gl.TEXTURE_2D, tex.textureId)
+	// unbind texture
+	defer gl.BindTexture(gl.TEXTURE_2D, 0)
+
+	gl.TextureParameteri(tex.textureId, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TextureParameteri(tex.textureId, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TextureParameteri(tex.textureId, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TextureParameteri(tex.textureId, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+
+	gl.TexImage2D(
+		gl.TEXTURE_2D,
+		0,
+		gl.RGBA,
+		int32(img.Bounds().Dx()),
+		int32(img.Bounds().Dy()),
+		0,
+		gl.RGBA,
+		gl.UNSIGNED_BYTE,
+		unsafe.Pointer(&img.Pix[0]),
+	)
+
+	getActiveGraphicsObjects().CurrentlyActiveTextures[relativePath] = tex
+
+	return tex, nil
 }
 
 func MakeShader(
-	vShaderFileName, fShaderFileName string,
+	shaderFiles ShaderFiles,
 ) (shaderId uint32, ok bool) {
+	// NOT THREAD SAFE
+
+	vShaderFileName := shaderFiles.VertexPath
+	fShaderFileName := shaderFiles.FragmentPath
 	logger.LOG.Debug().Msg("Creating new shader")
 
 	vertexCode, err := loadShaderCode(vShaderFileName)
@@ -173,6 +302,8 @@ func MakeShader(
 	gl.Uniform1i(gl.GetUniformLocation(shaderId, utils.StringToUint8(&uniformName)), 0)
 
 	setProjection(shaderId)
+
+	getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName] = shaderId
 
 	return shaderId, true
 }
@@ -234,47 +365,4 @@ func linkShader(shaderVertex uint32, shaderFragment uint32) (shaderId uint32, ok
 		return shaderId, false
 	}
 	return shaderId, true
-}
-
-func GenerateTexture(
-	relativePath string,
-) (
-	Texture, error,
-) {
-	logger.LOG.Debug().Msg("Creating new texture")
-	tex := Texture{}
-
-	img, err := loadTextures(relativePath)
-	if err != nil {
-		return Texture{}, err
-	}
-	tex.DimX = float32(img.Bounds().Dx())
-	tex.DimY = float32(img.Bounds().Dy())
-	p := runtime.Pinner{}
-	defer p.Unpin()
-	p.Pin(&img.Pix[0])
-
-	gl.GenTextures(1, &tex.TextureId)
-	gl.BindTexture(gl.TEXTURE_2D, tex.TextureId)
-	// unbind texture
-	defer gl.BindTexture(gl.TEXTURE_2D, 0)
-
-	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-	gl.TextureParameteri(tex.TextureId, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-
-	gl.TexImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RGBA,
-		int32(img.Bounds().Dx()),
-		int32(img.Bounds().Dy()),
-		0,
-		gl.RGBA,
-		gl.UNSIGNED_BYTE,
-		unsafe.Pointer(&img.Pix[0]),
-	)
-
-	return tex, nil
 }

@@ -23,16 +23,29 @@ func createButton(height, width, screenX, screenY float32) (*button, error) {
 	logger.LOG.Info().Msg("Creating new button")
 
 	b := new(button)
+
+	//temp
+	sprites.MakeShader(
+		sprites.ShaderFiles{
+			VertexPath:   "uiShader.vs",
+			FragmentPath: "alphaTextureShader.fs",
+		})
+	sprites.MakeTexture("ui/button.png")
+	sprites.MakeVAO(sprites.TexCoordOneSpritePerImg)
+	//end temp
+
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
-			VertexShaderRelPath: "uiShader.vs",
-			FragShaderRelPath:   "alphaTextureShader.fs",
-			TextureRelPath:      "ui/button.png",
-			TextureCoords:       sprites.TexCoordOneSpritePerImg,
-			ScreenX:             screenX,
-			ScreenY:             screenY,
-			SpriteOriginX:       0.0,
-			SpriteOriginY:       0.0,
+			ShaderRelPaths: sprites.ShaderFiles{
+				VertexPath:   "uiShader.vs",
+				FragmentPath: "alphaTextureShader.fs",
+			},
+			TextureRelPath: "ui/button.png",
+			TextureCoords:  sprites.TexCoordOneSpritePerImg,
+			ScreenX:        screenX,
+			ScreenY:        screenY,
+			SpriteOriginX:  0.0,
+			SpriteOriginY:  0.0,
 		},
 	)
 	if err != nil {

@@ -80,7 +80,7 @@ func createWindow() *glfw.Window {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	sprites.InitShaderScreen(1280, 960)
+	sprites.SetShaderScreenSize(1280, 960)
 	ui.InitMainMenu()
 
 	logger.LOG.Info().Msg("Setting window callbacks")

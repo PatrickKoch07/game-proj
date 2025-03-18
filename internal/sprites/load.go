@@ -60,11 +60,17 @@ func loadTextures(relativePath string) (*image.RGBA, error) {
 }
 
 var TexCoordOneSpritePerImg [12]float32 = [12]float32{
+	// bottom left
 	0.0, 0.0,
+	// top left
 	0.0, 1.0,
+	// top right
 	1.0, 1.0,
 
+	// bottom left
 	0.0, 0.0,
+	// top right
 	1.0, 1.0,
+	// bottom right
 	1.0, 0.0,
 }

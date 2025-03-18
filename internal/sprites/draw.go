@@ -10,51 +10,53 @@ import (
 )
 
 type Sprite struct {
-	ShaderId uint32
-	Tex      Texture
-	VAO      uint32
+	shaderId uint32
+	Tex      texture
+	vao      uint32
 	// Where the origin of the object is on the screen (top left is 0.0, 0.0)
 	ScreenX float32
 	ScreenY float32
 	// from 0.0 to 1.0, Where the origin of the object is on the sprite (top left is 0.0, 0.0)
-	OriginSpriteX float32
-	OriginSpriteY float32
+	originSpriteX float32
+	originSpriteY float32
 }
 
 type SpriteInitParams struct {
-	VertexShaderRelPath string
-	FragShaderRelPath   string
-	TextureRelPath      string
-	TextureCoords       [12]float32
-	ScreenX             float32
-	ScreenY             float32
-	SpriteOriginX       float32
-	SpriteOriginY       float32
+	// TextureCoords must be: Bottom left, top left, top right, bottom left, top right, bottom right
+	ShaderRelPaths ShaderFiles
+	TextureRelPath string
+	TextureCoords  [12]float32
+	ScreenX        float32
+	ScreenY        float32
+	SpriteOriginX  float32
+	SpriteOriginY  float32
 }
 
-func CreateSprite(sP *SpriteInitParams) (*Sprite, error) {
+func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 	logger.LOG.Info().Msg("Creating new sprite")
 
 	sprite := Sprite{}
 
 	var ok bool
-	sprite.ShaderId, ok = MakeShader(sP.VertexShaderRelPath, sP.FragShaderRelPath)
+	sprite.shaderId, ok = getShader(initParams.ShaderRelPaths)
 	if !ok {
 		return nil, errors.New("error making shader")
 	}
-	var err error
-	sprite.VAO = setVAO(sP.TextureCoords)
-	sprite.Tex, err = GenerateTexture(sP.TextureRelPath)
-	if err != nil {
+	sprite.vao, ok = getVAO(initParams.TextureCoords)
+	if !ok {
+		return nil, errors.New("error making VAO")
+	}
+	sprite.Tex, ok = getTexture(initParams.TextureRelPath, initParams.TextureCoords)
+	if !ok {
 		return nil, errors.New("error generating texture")
 	}
 
 	// default position in screen: top left
-	sprite.ScreenX = sP.ScreenX
-	sprite.ScreenY = sP.ScreenY
+	sprite.ScreenX = initParams.ScreenX
+	sprite.ScreenY = initParams.ScreenY
 	// origin of sprite: upper left
-	sprite.OriginSpriteX = sP.SpriteOriginX
-	sprite.OriginSpriteY = sP.SpriteOriginY
+	sprite.originSpriteX = initParams.SpriteOriginX
+	sprite.originSpriteY = initParams.SpriteOriginY
 
 	return &sprite, nil
 }
@@ -83,8 +85,8 @@ func AddToDrawingQueue(w weak.Pointer[Sprite]) {
 	}
 	logger.LOG.Debug().Msgf(
 		"Added draw object to the draw queue (ShaderID: %v, TextureID: %v): %v",
-		w.Value().ShaderId,
-		w.Value().Tex.TextureId,
+		w.Value().shaderId,
+		w.Value().Tex.textureId,
 		w,
 	)
 }
@@ -92,8 +94,8 @@ func AddToDrawingQueue(w weak.Pointer[Sprite]) {
 func RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
 	logger.LOG.Debug().Msgf(
 		"Manually removing object from the drawQueue (ShaderID: %v, TextureID: %v): %v",
-		w.Value().ShaderId,
-		w.Value().Tex.TextureId,
+		w.Value().shaderId,
+		w.Value().Tex.textureId,
 		w,
 	)
 
@@ -139,14 +141,14 @@ func DrawDrawQueue() {
 		} else {
 			screenX, screenY := strongSprite.getShaderOriginInScreenSpace()
 
-			gl.UseProgram(strongSprite.ShaderId)
-			setTransform(strongSprite.ShaderId, screenX, screenY)
-			setScale(strongSprite.ShaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
+			gl.UseProgram(strongSprite.shaderId)
+			setTransform(strongSprite.shaderId, screenX, screenY)
+			setScale(strongSprite.shaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
 
 			gl.ActiveTexture(gl.TEXTURE0)
-			gl.BindTexture(gl.TEXTURE_2D, strongSprite.Tex.TextureId)
+			gl.BindTexture(gl.TEXTURE_2D, strongSprite.Tex.textureId)
 
-			gl.BindVertexArray(strongSprite.VAO)
+			gl.BindVertexArray(strongSprite.vao)
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 			gl.BindVertexArray(0)
 		}
@@ -166,7 +168,7 @@ func initDrawQueue() {
 // technically shouldn't be part of sprite struct? but oh well, nobody else should use this anyway
 func (s *Sprite) getShaderOriginInScreenSpace() (x float32, y float32) {
 	// shader origin is defined as bottom left.
-	x = s.ScreenX - s.OriginSpriteX*s.Tex.DimX
-	y = s.ScreenY - s.OriginSpriteY*s.Tex.DimY
+	x = s.ScreenX - s.originSpriteX*s.Tex.DimX
+	y = s.ScreenY - s.originSpriteY*s.Tex.DimY
 	return x, y
 }
