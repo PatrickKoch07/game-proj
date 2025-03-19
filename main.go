@@ -7,6 +7,7 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
+	"github.com/PatrickKoch07/game-proj/internal/scenes"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 	"github.com/PatrickKoch07/game-proj/internal/ui"
 
@@ -40,23 +41,32 @@ func main() {
 	defer glfw.Terminate()
 	window := createWindow()
 
+	currentScene := scenes.GetTitleScene()
+	currentScene.Init()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
+		// update game objects
+		scenes.UpdateSceneGameObjects(currentScene)
+
 		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
-
 		// draw
 		sprites.DrawDrawQueue()
-
-		// swaping and polling
 		window.SwapBuffers()
-		glfw.PollEvents()
 
+		// deal with inputs
+		glfw.PollEvents()
 		inputs.Notify()
+
+		// Things to do in the main game loop/thread
 		// check if user requested the game to close through the UI
-		if ui.CloseRequested() {
+		if ui.WasCloseRequested() {
 			window.SetShouldClose(true)
+		}
+		// check if scene switched
+		if scenes.IsNextSceneRequested() {
+			currentScene = scenes.SwitchScene(currentScene, window)
 		}
 	}
 }
@@ -81,7 +91,6 @@ func createWindow() *glfw.Window {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	sprites.SetShaderScreenSize(1280, 960)
-	ui.InitMainMenu()
 
 	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)
