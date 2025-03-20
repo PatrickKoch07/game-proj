@@ -15,24 +15,14 @@ import (
 type button struct {
 	Sprite        *sprites.Sprite
 	inputListener inputs.InputListener
-	OnPress       func(float32, float32)
-	OnRelease     func(float32, float32)
+	OnPress       func()
+	OnRelease     func()
 }
 
-func createButton(height, width, screenX, screenY float32) (*button, error) {
+func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sprite, error) {
 	logger.LOG.Info().Msg("Creating new button")
 
 	b := new(button)
-
-	//temp
-	sprites.MakeShader(
-		sprites.ShaderFiles{
-			VertexPath:   "uiShader.vs",
-			FragmentPath: "alphaTextureShader.fs",
-		})
-	sprites.MakeTexture("ui/button.png")
-	sprites.MakeVAO(sprites.TexCoordOneSpritePerImg)
-	//end temp
 
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
@@ -49,14 +39,14 @@ func createButton(height, width, screenX, screenY float32) (*button, error) {
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, sprite, err
 	}
 	b.Sprite = sprite
 	b.Sprite.Tex.DimX = width
 	b.Sprite.Tex.DimY = height
 
-	b.OnPress = func(_ float32, _ float32) {}
-	b.OnRelease = func(_ float32, _ float32) {}
+	b.OnPress = func() {}
+	b.OnRelease = func() {}
 
 	b.inputListener = inputs.InputListener(b)
 	ok := inputs.Subscribe(
@@ -64,9 +54,9 @@ func createButton(height, width, screenX, screenY float32) (*button, error) {
 		weak.Make(&b.inputListener),
 	)
 	if !ok {
-		return nil, errors.New("failed to subscribe")
+		return nil, sprite, errors.New("failed to subscribe")
 	}
-	return b, nil
+	return b, sprite, nil
 }
 
 func (b *button) OnKeyAction(action glfw.Action) {
@@ -92,7 +82,7 @@ func (b *button) OnKeyAction(action glfw.Action) {
 			mX,
 			mY,
 		)
-		b.OnPress(cursor.GetCursor().ScreenX, cursor.GetCursor().ScreenY)
+		b.OnPress()
 	}
 
 	if action == glfw.Release {
@@ -101,6 +91,6 @@ func (b *button) OnKeyAction(action glfw.Action) {
 			mX,
 			mY,
 		)
-		b.OnRelease(cursor.GetCursor().ScreenX, cursor.GetCursor().ScreenY)
+		b.OnRelease()
 	}
 }

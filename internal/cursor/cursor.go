@@ -33,15 +33,13 @@ func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 func initCursor() {
 	logger.LOG.Info().Msg("Creating new cursor")
 
-	// temp
-	sprites.MakeShader(
-		sprites.ShaderFiles{
-			VertexPath:   "cursorShader.vs",
-			FragmentPath: "alphaTextureShader.fs",
-		})
-	sprites.MakeTexture("ui/cursor.png")
-	sprites.MakeVAO(sprites.TexCoordOneSpritePerImg)
-	// end temp
+	// sprites.MakeShader(
+	// 	sprites.ShaderFiles{
+	// 		VertexPath:   "cursorShader.vs",
+	// 		FragmentPath: "alphaTextureShader.fs",
+	// 	})
+	// sprites.MakeTexture("ui/cursor.png")
+	// sprites.MakeVAO(sprites.TexCoordOneSpritePerImg)
 
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
@@ -51,15 +49,20 @@ func initCursor() {
 			},
 			TextureRelPath: "ui/cursor.png",
 			TextureCoords:  sprites.TexCoordOneSpritePerImg,
-			ScreenX:        0.0,
-			ScreenY:        0.0,
-			SpriteOriginX:  0.0,
-			SpriteOriginY:  0.0,
+			// inital callbacks make cursor jump to center of screen so this makes it not visual
+			ScreenX: -100.0,
+			ScreenY: -100.0,
+			// ScreenX:       0.0,
+			// ScreenY:       0.0,
+			SpriteOriginX: 0.0,
+			SpriteOriginY: 0.0,
+			StretchX:      1.0,
+			StretchY:      1.0,
 		},
 	)
 	if err != nil {
 		logger.LOG.Error().Msg("Cursor failed to be made.")
-		logger.LOG.Error().Err(err)
+		logger.LOG.Error().Err(err).Msg("")
 		return
 	}
 	gameCursor = sprite

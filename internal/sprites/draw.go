@@ -2,7 +2,6 @@ package sprites
 
 import (
 	"container/list"
-	"errors"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -21,6 +20,18 @@ type Sprite struct {
 	originSpriteY float32
 }
 
+func (s *Sprite) GetShaderId() uint32 {
+	return s.shaderId
+}
+
+func (s *Sprite) GetTextureId() uint32 {
+	return s.Tex.textureId
+}
+
+func (s *Sprite) GetVAO() uint32 {
+	return s.vao
+}
+
 type SpriteInitParams struct {
 	// TextureCoords must be: Bottom left, top left, top right, bottom left, top right, bottom right
 	ShaderRelPaths ShaderFiles
@@ -30,6 +41,8 @@ type SpriteInitParams struct {
 	ScreenY        float32
 	SpriteOriginX  float32
 	SpriteOriginY  float32
+	StretchX       float32
+	StretchY       float32
 }
 
 func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
@@ -37,20 +50,22 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 
 	sprite := Sprite{}
 
-	var ok bool
-	sprite.shaderId, ok = getShader(initParams.ShaderRelPaths)
-	if !ok {
-		return nil, errors.New("error making shader")
+	var err error
+	sprite.shaderId, err = getShader(initParams.ShaderRelPaths)
+	if err != nil {
+		return nil, err
 	}
-	sprite.vao, ok = getVAO(initParams.TextureCoords)
-	if !ok {
-		return nil, errors.New("error making VAO")
+	sprite.vao, err = getVAO(initParams.TextureCoords)
+	if err != nil {
+		return nil, err
 	}
-	sprite.Tex, ok = getTexture(initParams.TextureRelPath, initParams.TextureCoords)
-	if !ok {
-		return nil, errors.New("error generating texture")
+	sprite.Tex, err = getTexture(initParams.TextureRelPath, initParams.TextureCoords)
+	if err != nil {
+		return nil, err
 	}
 
+	sprite.Tex.DimX *= initParams.StretchX
+	sprite.Tex.DimY *= initParams.StretchY
 	// default position in screen: top left
 	sprite.ScreenX = initParams.ScreenX
 	sprite.ScreenY = initParams.ScreenY
@@ -119,9 +134,8 @@ func RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
 
 		listElem = nextListElem
 	}
-
-	logger.LOG.Warn().Msgf("Object not found in the drawQueue: %v", w)
-	return false
+	logger.LOG.Debug().Msg("Couldn't find sprite to remove from Draw Queue")
+	return true
 }
 
 func DrawDrawQueue() {

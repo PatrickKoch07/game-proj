@@ -7,8 +7,8 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
+	"github.com/PatrickKoch07/game-proj/internal/scenes"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
-	"github.com/PatrickKoch07/game-proj/internal/ui"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -40,24 +40,22 @@ func main() {
 	defer glfw.Terminate()
 	window := createWindow()
 
+	scenes.GameStart()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
 		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
-
 		// draw
 		sprites.DrawDrawQueue()
-
-		// swaping and polling
 		window.SwapBuffers()
-		glfw.PollEvents()
 
+		// deal with inputs
+		glfw.PollEvents()
 		inputs.Notify()
-		// check if user requested the game to close through the UI
-		if ui.CloseRequested() {
-			window.SetShouldClose(true)
-		}
+
+		// update objects
+		scenes.Update()
 	}
 }
 
@@ -81,7 +79,6 @@ func createWindow() *glfw.Window {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	sprites.SetShaderScreenSize(1280, 960)
-	ui.InitMainMenu()
 
 	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)

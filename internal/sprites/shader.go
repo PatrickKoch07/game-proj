@@ -1,6 +1,7 @@
 package sprites
 
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 
@@ -24,77 +25,10 @@ type ShaderFiles struct {
 	FragmentPath string
 }
 
-func DeleteShaders(shaderFiles ...ShaderFiles) {
-	// delete from active objs and the graphics card
-	// TODO: LOCK
-	activeGraphicsObjs := getActiveGraphicsObjects()
-	for _, shaderFile := range shaderFiles {
-		shaderId := activeGraphicsObjs.CurrentlyActiveShaders[shaderFile.VertexPath+shaderFile.FragmentPath]
-		delete(activeGraphicsObjs.CurrentlyActiveShaders, shaderFile.VertexPath+shaderFile.FragmentPath)
-		gl.DeleteProgram(shaderId)
-	}
-}
-
-func DeleteTextures(relPaths ...string) {
-	// delete from active objs and the graphics card
-	// TODO: LOCK
-	activeGraphicsObjs := getActiveGraphicsObjects()
-	for _, relPath := range relPaths {
-		textureId := activeGraphicsObjs.CurrentlyActiveTextures[relPath]
-		delete(activeGraphicsObjs.CurrentlyActiveTextures, relPath)
-		gl.DeleteTextures(1, &textureId.textureId)
-	}
-}
-
-func DeleteVAO(manyTextureCoords ...[12]float32) {
-	// delete from active objs and the graphics card
-	// TODO: LOCK
-	activeGraphicsObjs := getActiveGraphicsObjects()
-	for _, textureCoords := range manyTextureCoords {
-		vaoKey := utils.Float32SliceToString(textureCoords[:])
-		VAO := activeGraphicsObjs.CurrentlyActiveVAOs[vaoKey]
-		delete(activeGraphicsObjs.CurrentlyActiveVAOs, vaoKey)
-		gl.DeleteVertexArrays(1, &VAO)
-	}
-}
-
 type texture struct {
 	textureId uint32
 	DimX      float32
 	DimY      float32
-}
-
-func getTexture(
-	relativePath string, textureCoords [12]float32,
-) (
-	texture, bool,
-) {
-	// get textureId
-	tex, ok := getActiveGraphicsObjects().CurrentlyActiveTextures[relativePath]
-	if !ok {
-		return texture{}, ok
-	}
-	// VAO should consist of two triangles.
-	// First triangle will be the first three 2-D points provided
-	tex.DimX *= textureCoords[4] - textureCoords[2]
-	tex.DimY *= textureCoords[3] - textureCoords[1]
-
-	return tex, true
-}
-
-func getShader(
-	shaderFiles ShaderFiles,
-) (shaderId uint32, ok bool) {
-	vShaderFileName := shaderFiles.VertexPath
-	fShaderFileName := shaderFiles.FragmentPath
-	shaderId, ok = getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName]
-	return shaderId, ok
-}
-
-func getVAO(textureCoords [12]float32) (uint32, bool) {
-	vaoKey := utils.Float32SliceToString(textureCoords[:])
-	vao, ok := getActiveGraphicsObjects().CurrentlyActiveVAOs[vaoKey]
-	return vao, ok
 }
 
 type graphicsObjects struct {
@@ -103,7 +37,132 @@ type graphicsObjects struct {
 	CurrentlyActiveVAOs     map[string]uint32
 }
 
-func initShader() {
+// func DeleteShaders(shaderFiles ...ShaderFiles) {
+// 	// delete from active objs and the graphics card
+// 	// TODO: LOCK
+// 	activeGraphicsObjs := getActiveGraphicsObjects()
+// 	for _, shaderFile := range shaderFiles {
+// 		shaderId := activeGraphicsObjs.CurrentlyActiveShaders[shaderFile.VertexPath+shaderFile.FragmentPath]
+// 		delete(activeGraphicsObjs.CurrentlyActiveShaders, shaderFile.VertexPath+shaderFile.FragmentPath)
+// 		gl.DeleteProgram(shaderId)
+// 	}
+// }
+
+func DeleteShaderById(shaderId uint32) bool {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for key, val := range activeGraphicsObjs.CurrentlyActiveShaders {
+		if shaderId == val {
+			delete(activeGraphicsObjs.CurrentlyActiveShaders, key)
+			gl.DeleteProgram(shaderId)
+			return true
+		}
+	}
+	return false
+}
+
+// func DeleteTextures(relPaths ...string) {
+// 	// delete from active objs and the graphics card
+// 	// TODO: LOCK
+// 	activeGraphicsObjs := getActiveGraphicsObjects()
+// 	for _, relPath := range relPaths {
+// 		textureId := activeGraphicsObjs.CurrentlyActiveTextures[relPath]
+// 		delete(activeGraphicsObjs.CurrentlyActiveTextures, relPath)
+// 		gl.DeleteTextures(1, &textureId.textureId)
+// 	}
+// }
+
+func DeleteTextureById(textureId uint32) bool {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for key, val := range activeGraphicsObjs.CurrentlyActiveTextures {
+		if textureId == val.textureId {
+			delete(activeGraphicsObjs.CurrentlyActiveTextures, key)
+			gl.DeleteTextures(1, &textureId)
+			return true
+		}
+	}
+	return false
+}
+
+// func DeleteVAO(manyTextureCoords ...[12]float32) {
+// 	// delete from active objs and the graphics card
+// 	// TODO: LOCK
+// 	activeGraphicsObjs := getActiveGraphicsObjects()
+// 	for _, textureCoords := range manyTextureCoords {
+// 		vaoKey := utils.Float32SliceToString(textureCoords[:])
+// 		VAO := activeGraphicsObjs.CurrentlyActiveVAOs[vaoKey]
+// 		delete(activeGraphicsObjs.CurrentlyActiveVAOs, vaoKey)
+// 		gl.DeleteVertexArrays(1, &VAO)
+// 	}
+// }
+
+func DeleteVAOById(vao uint32) bool {
+	// delete from active objs and the graphics card
+	// TODO: LOCK
+	activeGraphicsObjs := getActiveGraphicsObjects()
+	for key, val := range activeGraphicsObjs.CurrentlyActiveVAOs {
+		if vao == val {
+			delete(activeGraphicsObjs.CurrentlyActiveVAOs, key)
+			gl.DeleteVertexArrays(1, &vao)
+			return true
+		}
+	}
+	return false
+}
+
+func getTexture(
+	relativePath string, textureCoords [12]float32,
+) (
+	texture, error,
+) {
+	// get textureId
+	tex, ok := getActiveGraphicsObjects().CurrentlyActiveTextures[relativePath]
+	if !ok {
+		var err error
+		tex, err = makeTexture(relativePath)
+		if err != nil {
+			return tex, err
+		}
+	}
+	// VAO should consist of two triangles.
+	// First triangle will be the first three 2-D points provided
+	// This scales tex.Dim to be the correct sprite size.
+	tex.DimX *= textureCoords[4] - textureCoords[2]
+	tex.DimY *= textureCoords[3] - textureCoords[1]
+
+	return tex, nil
+}
+
+func getShader(
+	shaderFiles ShaderFiles,
+) (uint32, error) {
+	vShaderFileName := shaderFiles.VertexPath
+	fShaderFileName := shaderFiles.FragmentPath
+	shaderId, ok := getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName]
+	if !ok {
+		var err error
+		shaderId, err = makeShader(shaderFiles)
+		if err != nil {
+			return shaderId, err
+		}
+	}
+	return shaderId, nil
+}
+
+func getVAO(textureCoords [12]float32) (uint32, error) {
+	vaoKey := utils.Float32SliceToString(textureCoords[:])
+	vao, ok := getActiveGraphicsObjects().CurrentlyActiveVAOs[vaoKey]
+	if !ok {
+		vao = makeVAO(textureCoords)
+		return vao, nil
+	}
+	return vao, nil
+}
+
+func initActiveGraphicsObjs() {
 	activeGraphicsObjects = new(graphicsObjects)
 	activeGraphicsObjects.CurrentlyActiveShaders = make(map[string]uint32)
 	// 32 is the max set by openGL
@@ -113,7 +172,7 @@ func initShader() {
 
 func getActiveGraphicsObjects() *graphicsObjects {
 	if activeGraphicsObjects == nil {
-		initShader()
+		initActiveGraphicsObjs()
 	}
 	return activeGraphicsObjects
 }
@@ -174,8 +233,14 @@ func setProjection(shaderId uint32) {
 	)
 }
 
-func MakeVAO(textureCoords [12]float32) uint32 {
+func makeVAO(textureCoords [12]float32) uint32 {
 	// NOT THREAD SAFE
+
+	// vaoKey := utils.Float32SliceToString(textureCoords[:])
+	// vao, ok := getActiveGraphicsObjects().CurrentlyActiveVAOs[vaoKey]
+	// if ok {
+	// 	return vao
+	// }
 
 	logger.LOG.Info().Msg("Initializing sprite VAO & VBO")
 	var VAO, VBO uint32
@@ -216,7 +281,7 @@ func MakeVAO(textureCoords [12]float32) uint32 {
 	return VAO
 }
 
-func MakeTexture(relativePath string) (texture, error) {
+func makeTexture(relativePath string) (texture, error) {
 	// NOT THREAD SAFE
 
 	logger.LOG.Debug().Msg("Creating new texture")
@@ -259,10 +324,17 @@ func MakeTexture(relativePath string) (texture, error) {
 	return tex, nil
 }
 
-func MakeShader(
+func makeShader(
 	shaderFiles ShaderFiles,
-) (shaderId uint32, ok bool) {
+) (uint32, error) {
 	// NOT THREAD SAFE
+
+	// vShaderFileName := shaderFiles.VertexPath
+	// fShaderFileName := shaderFiles.FragmentPath
+	// shaderId, ok := getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName]
+	// if ok {
+	// 	return shaderId, nil
+	// }
 
 	vShaderFileName := shaderFiles.VertexPath
 	fShaderFileName := shaderFiles.FragmentPath
@@ -270,14 +342,14 @@ func MakeShader(
 
 	vertexCode, err := loadShaderCode(vShaderFileName)
 	if err != nil {
-		return 0, false
+		return 0, err
 	}
 	vertexCodes := make([]*uint8, 1)
 	vertexCodes[0] = &vertexCode[0]
 
 	fragmentCode, err := loadShaderCode(fShaderFileName)
 	if err != nil {
-		return 0, false
+		return 0, err
 	}
 	fragmentCodes := make([]*uint8, 1)
 	fragmentCodes[0] = &fragmentCode[0]
@@ -289,12 +361,12 @@ func MakeShader(
 		int32(len(fragmentCode)),
 	)
 	if !ok {
-		return 0, false
+		return 0, errors.New("error compiling shader")
 	}
 
-	shaderId, ok = linkShader(sV, sF)
+	shaderId, ok := linkShader(sV, sF)
 	if !ok {
-		return 0, false
+		return 0, errors.New("error linking shader")
 	}
 
 	gl.UseProgram(shaderId)
@@ -305,7 +377,7 @@ func MakeShader(
 
 	getActiveGraphicsObjects().CurrentlyActiveShaders[vShaderFileName+fShaderFileName] = shaderId
 
-	return shaderId, true
+	return shaderId, nil
 }
 
 func compileShader(
