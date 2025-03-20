@@ -18,7 +18,7 @@ func GetLoadingScene() *Scene {
 
 func createLoadingScene() {
 	loadingScene = new(Scene)
-	loadingScene.sprites = make([]*sprites.Sprite, 1)
+	loadingScene.Sprites = make([]*sprites.Sprite, 1)
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
 			ShaderRelPaths: sprites.ShaderFiles{
@@ -31,18 +31,18 @@ func createLoadingScene() {
 			ScreenY:        0,
 			SpriteOriginX:  0,
 			SpriteOriginY:  0,
-			StretchX:       0,
-			StretchY:       0,
+			StretchX:       1,
+			StretchY:       1,
 		},
 	)
 	if err != nil {
 		logger.LOG.Error().Err(err).Msg("")
 	} else {
-		loadingScene.sprites[0] = sprite
+		loadingScene.Sprites[0] = sprite
 	}
 	loadingScene.Init = initLoadingScene
 }
 
 func initLoadingScene() {
-	sprites.AddToDrawingQueue(weak.Make(loadingScene.sprites[0]))
+	sprites.AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
 }

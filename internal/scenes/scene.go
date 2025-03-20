@@ -1,45 +1,43 @@
 package scenes
 
 import (
-	"time"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/gameObjects"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
-
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
-var nextScene *Scene
+var sceneMap map[string]func() *Scene
+
+func init() {
+	logger.LOG.Info().Msg("Creating scene map, name to getter")
+	sceneMap = make(map[string]func() *Scene)
+	sceneMap["titleScene"] = GetTitleScene
+	sceneMap["worldScene"] = GetWorldScene
+	nextSceneName = ""
+}
 
 type Scene struct {
-	sprites     []*sprites.Sprite
-	gameObjects []gameObjects.GameObject
+	// On switch, what graphics objects to potentially stop drawing & which to switch out
+	Sprites []*sprites.Sprite
+	// What objects to update
+	GameObjects []gameObjects.GameObject
 	Init        func()
 }
 
-func IsNextSceneRequested() bool {
-	return nextScene != nil
-}
-
-func SetNextScene(next *Scene) {
-	nextScene = next
-}
-
-func unloadUncommonGraphicObjs(current *Scene, next *Scene) {
+func UnloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	nextShaders := make(map[uint32]struct{})
 	nextTextures := make(map[uint32]struct{})
 	nextVAOs := make(map[uint32]struct{})
-	for _, sprite := range next.sprites {
+	for _, sprite := range next.Sprites {
 		nextShaders[sprite.GetShaderId()] = struct{}{}
 		nextTextures[sprite.GetTextureId()] = struct{}{}
 		nextVAOs[sprite.GetVAO()] = struct{}{}
 	}
 
 	// if not in the next scene, delete
-	for _, sprite := range current.sprites {
+	for _, sprite := range current.Sprites {
 		_, ok := nextShaders[sprite.GetShaderId()]
 		if !ok {
 			sprites.DeleteShaderById(sprite.GetShaderId())
@@ -58,8 +56,8 @@ func unloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	}
 }
 
-func stopDrawingScene(s *Scene) {
-	for _, sprite := range s.sprites {
+func StopDrawingScene(s *Scene) {
+	for _, sprite := range s.Sprites {
 		if sprite == nil {
 			continue
 		}
@@ -70,32 +68,9 @@ func stopDrawingScene(s *Scene) {
 	}
 }
 
-func SwitchScene(currentScene *Scene, window *glfw.Window) *Scene {
-	// MUST be called in main game loop/thread
-
-	stopDrawingScene(currentScene)
-	loadingScene.Init()
-	// clear previous rendering
-	gl.Clear(gl.COLOR_BUFFER_BIT)
-	gl.Clear(gl.DEPTH_BUFFER_BIT)
-	// draw
-	sprites.DrawDrawQueue()
-	window.SwapBuffers()
-	unloadUncommonGraphicObjs(currentScene, nextScene)
-
-	nextScene.Init()
-	// dummy to let me see the loading screen
-	time.Sleep(10 * time.Second)
-	stopDrawingScene(GetLoadingScene())
-
-	currentScene = nextScene
-	SetNextScene(nil)
-	return currentScene
-}
-
 func UpdateSceneGameObjects(currentScene *Scene) {
 	// called in main game loop
-	for _, gameObject := range currentScene.gameObjects {
+	for _, gameObject := range currentScene.GameObjects {
 		if gameObject.ShouldSkipUpdate() {
 			continue
 		}

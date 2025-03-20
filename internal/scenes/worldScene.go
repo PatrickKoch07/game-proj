@@ -6,11 +6,12 @@ var worldScene *Scene
 
 func GetWorldScene() *Scene {
 	if worldScene == nil {
-		createLoadingScene()
+		createWorldScene()
 	}
 	return worldScene
 }
 
 func createWorldScene() {
-	worldScene.Init = func() { logger.LOG.Debug().Msg("Main world loaded") }
+	worldScene = new(Scene)
+	worldScene.Init = func() { logger.LOG.Debug().Msg("Dummy log: Main world loaded") }
 }

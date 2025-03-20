@@ -49,12 +49,15 @@ func initCursor() {
 			},
 			TextureRelPath: "ui/cursor.png",
 			TextureCoords:  sprites.TexCoordOneSpritePerImg,
-			ScreenX:        0.0,
-			ScreenY:        0.0,
-			SpriteOriginX:  0.0,
-			SpriteOriginY:  0.0,
-			StretchX:       1.0,
-			StretchY:       1.0,
+			// inital callbacks make cursor jump to center of screen so this makes it not visual
+			ScreenX: -100.0,
+			ScreenY: -100.0,
+			// ScreenX:       0.0,
+			// ScreenY:       0.0,
+			SpriteOriginX: 0.0,
+			SpriteOriginY: 0.0,
+			StretchX:      1.0,
+			StretchY:      1.0,
 		},
 	)
 	if err != nil {

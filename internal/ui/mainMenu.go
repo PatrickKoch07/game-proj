@@ -8,9 +8,9 @@ import (
 var exitRequested bool = false
 
 type MainMenu struct {
-	playButton     *button
-	exitButton     *button
-	PlayButtonFunc func()
+	playButton      *button
+	exitButton      *button
+	SwitchSceneFunc func()
 }
 
 func (mm MainMenu) ShouldSkipUpdate() bool {
@@ -31,7 +31,7 @@ func (mm MainMenu) InitInstance() ([]*sprites.Sprite, bool) {
 		logger.LOG.Error().Err(err).Msg("")
 	} else {
 		mm.playButton = playButton
-		mm.playButton.OnPress = mm.PlayButtonFunc
+		mm.playButton.OnPress = mm.SwitchSceneFunc
 		sprites[0] = sprite
 	}
 
@@ -55,7 +55,7 @@ func WasCloseRequested() bool {
 
 func exitGame() {
 	exitRequested = true
-	// pretty sure this should only get called on the main thread...
+	// pretty sure below should only get called on the main thread...
 	// glfw.GetCurrentContext().SetShouldClose(true)
 }
 

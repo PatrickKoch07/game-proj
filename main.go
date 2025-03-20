@@ -9,7 +9,6 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/scenes"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
-	"github.com/PatrickKoch07/game-proj/internal/ui"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -41,13 +40,9 @@ func main() {
 	defer glfw.Terminate()
 	window := createWindow()
 
-	currentScene := scenes.GetTitleScene()
-	currentScene.Init()
+	scenes.GameStart()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
-		// update game objects
-		scenes.UpdateSceneGameObjects(currentScene)
-
 		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
@@ -59,15 +54,8 @@ func main() {
 		glfw.PollEvents()
 		inputs.Notify()
 
-		// Things to do in the main game loop/thread
-		// check if user requested the game to close through the UI
-		if ui.WasCloseRequested() {
-			window.SetShouldClose(true)
-		}
-		// check if scene switched
-		if scenes.IsNextSceneRequested() {
-			currentScene = scenes.SwitchScene(currentScene, window)
-		}
+		// update objects
+		scenes.Update()
 	}
 }
 

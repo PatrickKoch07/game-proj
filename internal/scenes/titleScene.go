@@ -23,39 +23,8 @@ func createTitleScene() {
 }
 
 func initTitleScene() {
-	// spriteInits := make([]sprites.SpriteInitParams, 2)
-	// spriteInits[0] = sprites.SpriteInitParams{
-	// 	ShaderRelPaths: sprites.ShaderFiles{
-	// 		VertexPath:   "uiShader.vs",
-	// 		FragmentPath: "alphaTextureShader.fs",
-	// 	},
-	// 	TextureRelPath: "ui/button.png",
-	// 	TextureCoords:  sprites.TexCoordOneSpritePerImg,
-	// 	ScreenX:        512,
-	// 	ScreenY:        640,
-	// 	SpriteOriginX:  0.0,
-	// 	SpriteOriginY:  0.0,
-	// 	StretchX:       10.0,
-	// 	StretchY:       2.0,
-	// }
-	// spriteInits[1] = sprites.SpriteInitParams{
-	// 	ShaderRelPaths: sprites.ShaderFiles{
-	// 		VertexPath:   "uiShader.vs",
-	// 		FragmentPath: "alphaTextureShader.fs",
-	// 	},
-	// 	TextureRelPath: "ui/button.png",
-	// 	TextureCoords:  sprites.TexCoordOneSpritePerImg,
-	// 	ScreenX:        512,
-	// 	ScreenY:        756,
-	// 	SpriteOriginX:  0.0,
-	// 	SpriteOriginY:  0.0,
-	// 	StretchX:       10.0,
-	// 	StretchY:       2.0,
-	// }
-	mm := ui.MainMenu{}
-	// I really don't like this,
 	// should be a better solution than reallllly remembering to do this before the init
-	mm.PlayButtonFunc = switchScene
+	mm := ui.MainMenu{SwitchSceneFunc: flagSceneSwitch}
 	buttonSprites, ok := mm.InitInstance()
 	if !ok {
 		logger.LOG.Error().Msg("Issue initializing main menu")
@@ -63,12 +32,12 @@ func initTitleScene() {
 		for _, sprite := range buttonSprites {
 			sprites.AddToDrawingQueue(weak.Make(sprite))
 		}
-		GetTitleScene().gameObjects = append(GetTitleScene().gameObjects, mm)
-		GetTitleScene().sprites = append(GetTitleScene().sprites, buttonSprites...)
+		GetTitleScene().GameObjects = append(GetTitleScene().GameObjects, mm)
+		GetTitleScene().Sprites = append(GetTitleScene().Sprites, buttonSprites...)
 	}
 }
 
-func switchScene() {
+func flagSceneSwitch() {
 	logger.LOG.Debug().Msg("Starting switch scene process")
-	SetNextScene(GetWorldScene())
+	nextSceneName = "worldScene"
 }
