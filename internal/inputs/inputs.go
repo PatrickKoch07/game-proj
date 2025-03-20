@@ -1,5 +1,9 @@
 package inputs
 
+// Package level state held by private singleton initiated at program start.
+// The main thread will use a function to call notify every frame.
+// During a frame, on any thread, objects can subscribe or unsubscribe. (todo)
+
 import (
 	"container/list"
 	"errors"
@@ -12,48 +16,75 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 )
 
-type KeyState int
-
-const (
-	Inactive KeyState = 0
-	Pressed  KeyState = 1
-)
-
 type KeyAction struct {
-	Key    glfw.Key
-	Action glfw.Action
+	Key    Key
+	Action Action
 }
 
 type InputListener interface {
-	OnKeyAction(glfw.Action)
+	OnKeyAction(Action)
 }
 
 type inputManager struct {
-	keyStates      map[glfw.Key]KeyState
+	keyStates      map[Key]KeyState
 	keyActionQueue []KeyAction
-	keyListeners   map[glfw.Key]*list.List
+	keyListeners   map[Key]*list.List
 }
 
-func getInputManager() *inputManager {
+// 10 seems like a large number for every frame's worth of inputs
+const inputManagerQueueSize int = 10
+
+var inputManagerObj *inputManager
+
+func init() {
+	initInputManager()
+}
+
+func initInputManager() {
+	logger.LOG.Info().Msg("Creating new Input Manager!")
+
+	inputManagerObj = new(inputManager)
+	inputManagerObj.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
+
+	inputManagerObj.keyStates = make(map[Key]KeyState)
+	inputManagerObj.keyStates[KeyW] = Inactive
+	inputManagerObj.keyStates[KeyA] = Inactive
+	inputManagerObj.keyStates[KeyS] = Inactive
+	inputManagerObj.keyStates[KeyD] = Inactive
+	inputManagerObj.keyStates[KeyEscape] = Inactive
+	inputManagerObj.keyStates[LMB] = Inactive
+	inputManagerObj.keyStates[RMB] = Inactive
+
+	inputManagerObj.keyListeners = make(map[Key]*list.List)
+	inputManagerObj.keyListeners[KeyW] = list.New()
+	inputManagerObj.keyListeners[KeyA] = list.New()
+	inputManagerObj.keyListeners[KeyS] = list.New()
+	inputManagerObj.keyListeners[KeyD] = list.New()
+	inputManagerObj.keyListeners[KeyEscape] = list.New()
+	inputManagerObj.keyListeners[LMB] = list.New()
+	inputManagerObj.keyListeners[RMB] = list.New()
+}
+
+func GetInputManager() *inputManager {
 	if inputManagerObj == nil {
 		initInputManager()
 	}
 	return inputManagerObj
 }
 
-func GetKeyState(key glfw.Key) (KeyState, bool) {
-	value, ok := getInputManager().keyStates[key]
+func (k *inputManager) GetKeyState(key Key) (KeyState, bool) {
+	value, ok := k.keyStates[key]
 	return value, ok
 }
 
-func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
-	if _, ok := getInputManager().keyListeners[key]; !ok {
+func (k *inputManager) Subscribe(key Key, w weak.Pointer[InputListener]) bool {
+	if _, ok := k.keyListeners[key]; !ok {
 		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
 
-	getInputManager().keyListeners[key].PushFront(w)
-	if getInputManager().keyListeners[key].Len() > 10 {
+	k.keyListeners[key].PushFront(w)
+	if k.keyListeners[key].Len() > 10 {
 		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
 	}
 	logger.LOG.Debug().Msgf("(Key: %v) Added subscriber: %v(%v)",
@@ -64,8 +95,8 @@ func Subscribe(key glfw.Key, w weak.Pointer[InputListener]) bool {
 	return true
 }
 
-func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
-	listenerList, ok := getInputManager().keyListeners[key]
+func (k *inputManager) Unsubscribe(key Key, w weak.Pointer[InputListener]) error {
+	listenerList, ok := k.keyListeners[key]
 	if !ok {
 		return errors.New("key does not exist")
 	}
@@ -77,19 +108,19 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 		switch listener := listElem.Value.(type) {
 		case nil:
 			logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-			getInputManager().keyListeners[key].Remove(listElem)
+			k.keyListeners[key].Remove(listElem)
 		case weak.Pointer[InputListener]:
 			strongListener := listener.Value()
 			if strongListener == nil {
 				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
-				getInputManager().keyListeners[key].Remove(listElem)
+				k.keyListeners[key].Remove(listElem)
 			} else if listener == w {
 				logger.LOG.Debug().Msgf("(Key: %v) Removing subscriber: %v(%v)",
 					key,
 					w.Value(),
 					reflect.TypeOf(*w.Value()),
 				)
-				getInputManager().keyListeners[key].Remove(listElem)
+				k.keyListeners[key].Remove(listElem)
 				return nil
 			}
 		default:
@@ -110,8 +141,7 @@ func Unsubscribe(key glfw.Key, w weak.Pointer[InputListener]) error {
 	return errors.New("no listener to be removed")
 }
 
-func Notify() {
-	k := getInputManager()
+func (k *inputManager) Notify() {
 	var wg sync.WaitGroup
 	// for all Actions in input queue
 	for ka, ok := k.dirtyPop(); ok; ka, ok = k.dirtyPop() {
@@ -169,7 +199,7 @@ func InputKeysCallback(
 		return
 	}
 
-	err := getInputManager().push(KeyAction{Key: key, Action: action})
+	err := GetInputManager().push(KeyAction{Key: Key(key), Action: Action(action)})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
@@ -182,48 +212,10 @@ func InputMouseCallback(
 		return
 	}
 
-	err := getInputManager().push(KeyAction{Key: glfw.Key(MouseButtonToKey(button)), Action: action})
+	err := GetInputManager().push(KeyAction{Key: Key(MouseButtonToKey(button)), Action: Action(action)})
 	if err != nil {
 		logger.LOG.Fatal().Err(err).Msg("Error in glfw to input queue.")
 	}
-}
-
-// 10 seems like a large number for every frame's worth of inputs
-const inputManagerQueueSize int = 10
-
-var inputManagerObj *inputManager
-
-func init() {
-	initInputManager()
-}
-
-func initInputManager() {
-	logger.LOG.Info().Msg("Creating new Input Manager!")
-
-	inputManagerObj = new(inputManager)
-	inputManagerObj.keyActionQueue = make([]KeyAction, 0, inputManagerQueueSize)
-
-	inputManagerObj.keyStates = make(map[glfw.Key]KeyState)
-	inputManagerObj.keyStates[glfw.KeyW] = Inactive
-	inputManagerObj.keyStates[glfw.KeyA] = Inactive
-	inputManagerObj.keyStates[glfw.KeyS] = Inactive
-	inputManagerObj.keyStates[glfw.KeyD] = Inactive
-	inputManagerObj.keyStates[glfw.KeyEscape] = Inactive
-	inputManagerObj.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = Inactive
-	inputManagerObj.keyStates[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = Inactive
-
-	inputManagerObj.keyListeners = make(map[glfw.Key]*list.List)
-	inputManagerObj.keyListeners[glfw.KeyW] = list.New()
-	inputManagerObj.keyListeners[glfw.KeyA] = list.New()
-	inputManagerObj.keyListeners[glfw.KeyS] = list.New()
-	inputManagerObj.keyListeners[glfw.KeyD] = list.New()
-	inputManagerObj.keyListeners[glfw.KeyEscape] = list.New()
-	inputManagerObj.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton1))] = list.New()
-	inputManagerObj.keyListeners[glfw.Key(MouseButtonToKey(glfw.MouseButton2))] = list.New()
-}
-
-func MouseButtonToKey(m glfw.MouseButton) int {
-	return (-1 * int(m)) - 2
 }
 
 func (k *inputManager) push(ka KeyAction) error {
@@ -253,10 +245,10 @@ func (k *inputManager) dirtyPop() (ka KeyAction, ok bool) {
 		k.keyActionQueue = k.keyActionQueue[1:]
 
 		switch ka.Action {
-		case glfw.Release:
+		case Release:
 			k.keyStates[ka.Key] = Inactive
 			return ka, true
-		case glfw.Press:
+		case Press:
 			if k.keyStates[ka.Key] == Pressed {
 				continue
 			}

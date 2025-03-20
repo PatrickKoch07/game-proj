@@ -40,7 +40,8 @@ func main() {
 	defer glfw.Terminate()
 	window := createWindow()
 
-	scenes.GameStart()
+	GlobalScene := scenes.CreateGlobalScene()
+	InputManager := inputs.GetInputManager()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
 		// clear previous rendering
@@ -52,10 +53,10 @@ func main() {
 
 		// deal with inputs
 		glfw.PollEvents()
-		inputs.Notify()
+		InputManager.Notify()
 
 		// update objects
-		scenes.Update()
+		GlobalScene.Update()
 	}
 }
 

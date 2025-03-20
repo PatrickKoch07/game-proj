@@ -45,6 +45,24 @@ type SpriteInitParams struct {
 	StretchY       float32
 }
 
+var drawQueue *list.List
+
+func init() {
+	initDrawQueue()
+}
+
+func initDrawQueue() {
+	logger.LOG.Info().Msg("Creating new draw queue")
+	drawQueue = list.New()
+}
+
+func getDrawQueue() *list.List {
+	if drawQueue == nil {
+		initDrawQueue()
+	}
+	return drawQueue
+}
+
 func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 	logger.LOG.Info().Msg("Creating new sprite")
 
@@ -76,23 +94,6 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 	return &sprite, nil
 }
 
-var drawQueue *list.List
-
-func getDrawQueue() *list.List {
-	if drawQueue == nil {
-		initDrawQueue()
-	}
-	return drawQueue
-}
-
-/*
-BIG NOTE ABOUT THE FOLLOWING TWO FUNCTIONS (ADD TO DRAWING QUEUE & REMOVE FROM DRAWING QUEUE):
-
-	The idea is that these two functions would be used whenever the player enters the start and
-	end area of a zone. Ideally, they would hit a loading area for the next zone. Then they would
-	hit a deload zone from the previous region. Some game state would keep track of what 'zone'
-	they are in and what operation to do when they cross any boundary.
-*/
 func AddToDrawingQueue(w weak.Pointer[Sprite]) {
 	drawQueue.PushFront(w)
 	if drawQueue.Len() > 100 {
@@ -139,6 +140,8 @@ func RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
 }
 
 func DrawDrawQueue() {
+	// called from main thread
+	
 	listElem := getDrawQueue().Front()
 	for listElem != nil {
 		nextListElem := listElem.Next()
@@ -168,15 +171,6 @@ func DrawDrawQueue() {
 		}
 		listElem = nextListElem
 	}
-}
-
-func init() {
-	initDrawQueue()
-}
-
-func initDrawQueue() {
-	logger.LOG.Info().Msg("Creating new draw queue")
-	drawQueue = list.New()
 }
 
 // technically shouldn't be part of sprite struct? but oh well, nobody else should use this anyway

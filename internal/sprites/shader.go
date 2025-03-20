@@ -1,5 +1,8 @@
 package sprites
 
+// Package level state held by private singleton initialized at program start.
+// Holds the currently active graphics objects so things can be properly deleted & not duplicated.
+
 import (
 	"errors"
 	"runtime"
@@ -11,9 +14,11 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
+var activeGraphicsObjects *graphicsObjects
+
+// This should be fixed by getting from gamestate TODO
 var screenHeight int
 var screenWidth int
-var activeGraphicsObjects *graphicsObjects
 
 func SetShaderScreenSize(sWidth int, sHeight int) {
 	screenHeight = sHeight
@@ -35,6 +40,25 @@ type graphicsObjects struct {
 	CurrentlyActiveShaders  map[string]uint32
 	CurrentlyActiveTextures map[string]texture
 	CurrentlyActiveVAOs     map[string]uint32
+}
+
+func init() {
+	initActiveGraphicsObjs()
+}
+
+func initActiveGraphicsObjs() {
+	activeGraphicsObjects = new(graphicsObjects)
+	activeGraphicsObjects.CurrentlyActiveShaders = make(map[string]uint32)
+	// 32 is the max set by openGL
+	activeGraphicsObjects.CurrentlyActiveTextures = make(map[string]texture, 32)
+	activeGraphicsObjects.CurrentlyActiveVAOs = make(map[string]uint32)
+}
+
+func getActiveGraphicsObjects() *graphicsObjects {
+	if activeGraphicsObjects == nil {
+		initActiveGraphicsObjs()
+	}
+	return activeGraphicsObjects
 }
 
 // func DeleteShaders(shaderFiles ...ShaderFiles) {
@@ -160,21 +184,6 @@ func getVAO(textureCoords [12]float32) (uint32, error) {
 		return vao, nil
 	}
 	return vao, nil
-}
-
-func initActiveGraphicsObjs() {
-	activeGraphicsObjects = new(graphicsObjects)
-	activeGraphicsObjects.CurrentlyActiveShaders = make(map[string]uint32)
-	// 32 is the max set by openGL
-	activeGraphicsObjects.CurrentlyActiveTextures = make(map[string]texture, 32)
-	activeGraphicsObjects.CurrentlyActiveVAOs = make(map[string]uint32)
-}
-
-func getActiveGraphicsObjects() *graphicsObjects {
-	if activeGraphicsObjects == nil {
-		initActiveGraphicsObjs()
-	}
-	return activeGraphicsObjects
 }
 
 func setTransform(

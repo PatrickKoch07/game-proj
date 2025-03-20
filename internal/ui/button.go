@@ -8,8 +8,6 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
-
-	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 type button struct {
@@ -49,17 +47,14 @@ func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sp
 	b.OnRelease = func() {}
 
 	b.inputListener = inputs.InputListener(b)
-	ok := inputs.Subscribe(
-		glfw.Key(inputs.MouseButtonToKey(glfw.MouseButton1)),
-		weak.Make(&b.inputListener),
-	)
+	ok := inputs.GetInputManager().Subscribe(inputs.LMB, weak.Make(&b.inputListener))
 	if !ok {
 		return nil, sprite, errors.New("failed to subscribe")
 	}
 	return b, sprite, nil
 }
 
-func (b *button) OnKeyAction(action glfw.Action) {
+func (b *button) OnKeyAction(action inputs.Action) {
 	mX := cursor.GetCursor().ScreenX
 	if mX <= b.Sprite.ScreenX {
 		return
@@ -76,7 +71,7 @@ func (b *button) OnKeyAction(action glfw.Action) {
 		return
 	}
 
-	if action == glfw.Press {
+	if action == inputs.Press {
 		logger.LOG.Debug().Msgf(
 			"Mouse pressed at (%v, %v)",
 			mX,
@@ -85,7 +80,7 @@ func (b *button) OnKeyAction(action glfw.Action) {
 		b.OnPress()
 	}
 
-	if action == glfw.Release {
+	if action == inputs.Release {
 		logger.LOG.Debug().Msgf(
 			"Mouse released at (%v, %v)",
 			mX,

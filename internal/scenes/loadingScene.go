@@ -7,17 +7,8 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
-var loadingScene *Scene
-
-func GetLoadingScene() *Scene {
-	if loadingScene == nil {
-		createLoadingScene()
-	}
-	return loadingScene
-}
-
-func createLoadingScene() {
-	loadingScene = new(Scene)
+func createLoadingScene() *Scene {
+	loadingScene := new(Scene)
 	loadingScene.Sprites = make([]*sprites.Sprite, 1)
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
@@ -41,8 +32,10 @@ func createLoadingScene() {
 		loadingScene.Sprites[0] = sprite
 	}
 	loadingScene.Init = initLoadingScene
+
+	return loadingScene
 }
 
-func initLoadingScene() {
+func initLoadingScene(loadingScene *Scene) {
 	sprites.AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
 }

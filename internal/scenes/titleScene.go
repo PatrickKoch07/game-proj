@@ -8,21 +8,13 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/ui"
 )
 
-var titleScene *Scene
-
-func GetTitleScene() *Scene {
-	if titleScene == nil {
-		createTitleScene()
-	}
+func createTitleScene() *Scene {
+	titleScene := new(Scene)
+	titleScene.Init = initTitleScene
 	return titleScene
 }
 
-func createTitleScene() {
-	titleScene = new(Scene)
-	titleScene.Init = initTitleScene
-}
-
-func initTitleScene() {
+func initTitleScene(titleScene *Scene) {
 	// should be a better solution than reallllly remembering to do this before the init
 	mm := ui.MainMenu{SwitchSceneFunc: flagSceneSwitch}
 	buttonSprites, ok := mm.InitInstance()
@@ -32,8 +24,8 @@ func initTitleScene() {
 		for _, sprite := range buttonSprites {
 			sprites.AddToDrawingQueue(weak.Make(sprite))
 		}
-		GetTitleScene().GameObjects = append(GetTitleScene().GameObjects, mm)
-		GetTitleScene().Sprites = append(GetTitleScene().Sprites, buttonSprites...)
+		titleScene.GameObjects = append(titleScene.GameObjects, mm)
+		titleScene.Sprites = append(titleScene.Sprites, buttonSprites...)
 	}
 }
 

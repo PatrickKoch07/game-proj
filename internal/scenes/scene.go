@@ -1,6 +1,7 @@
 package scenes
 
 import (
+	"sync"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/gameObjects"
@@ -8,22 +9,12 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
-var sceneMap map[string]func() *Scene
-
-func init() {
-	logger.LOG.Info().Msg("Creating scene map, name to getter")
-	sceneMap = make(map[string]func() *Scene)
-	sceneMap["titleScene"] = GetTitleScene
-	sceneMap["worldScene"] = GetWorldScene
-	nextSceneName = ""
-}
-
 type Scene struct {
 	// On switch, what graphics objects to potentially stop drawing & which to switch out
 	Sprites []*sprites.Sprite
 	// What objects to update
 	GameObjects []gameObjects.GameObject
-	Init        func()
+	Init        func(*Scene)
 }
 
 func UnloadUncommonGraphicObjs(current *Scene, next *Scene) {
@@ -70,10 +61,13 @@ func StopDrawingScene(s *Scene) {
 
 func UpdateSceneGameObjects(currentScene *Scene) {
 	// called in main game loop
+	var wg sync.WaitGroup
 	for _, gameObject := range currentScene.GameObjects {
 		if gameObject.ShouldSkipUpdate() {
 			continue
 		}
+		wg.Add(1)
 		go gameObject.Update()
 	}
+	wg.Wait()
 }

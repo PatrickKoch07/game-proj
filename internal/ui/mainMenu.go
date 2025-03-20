@@ -5,6 +5,7 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
+// solved by game state TODO
 var exitRequested bool = false
 
 type MainMenu struct {
