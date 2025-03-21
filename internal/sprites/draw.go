@@ -2,6 +2,7 @@ package sprites
 
 import (
 	"container/list"
+	"sync"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -46,10 +47,7 @@ type SpriteInitParams struct {
 }
 
 var drawQueue *list.List
-
-func init() {
-	initDrawQueue()
-}
+var onceDrawQueue sync.Once
 
 func initDrawQueue() {
 	logger.LOG.Info().Msg("Creating new draw queue")
@@ -57,9 +55,7 @@ func initDrawQueue() {
 }
 
 func getDrawQueue() *list.List {
-	if drawQueue == nil {
-		initDrawQueue()
-	}
+	onceDrawQueue.Do(initDrawQueue)
 	return drawQueue
 }
 
@@ -141,7 +137,7 @@ func RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
 
 func DrawDrawQueue() {
 	// called from main thread
-	
+
 	listElem := getDrawQueue().Front()
 	for listElem != nil {
 		nextListElem := listElem.Next()

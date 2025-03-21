@@ -14,6 +14,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+// should be fixed by gamestate TODO
 var nextSceneName string
 
 type globalScene struct {

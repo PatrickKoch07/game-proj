@@ -6,6 +6,7 @@ package sprites
 import (
 	"errors"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -15,6 +16,7 @@ import (
 )
 
 var activeGraphicsObjects *graphicsObjects
+var onceGraphicsObjects sync.Once
 
 // This should be fixed by getting from gamestate TODO
 var screenHeight int
@@ -42,10 +44,6 @@ type graphicsObjects struct {
 	CurrentlyActiveVAOs     map[string]uint32
 }
 
-func init() {
-	initActiveGraphicsObjs()
-}
-
 func initActiveGraphicsObjs() {
 	activeGraphicsObjects = new(graphicsObjects)
 	activeGraphicsObjects.CurrentlyActiveShaders = make(map[string]uint32)
@@ -55,9 +53,7 @@ func initActiveGraphicsObjs() {
 }
 
 func getActiveGraphicsObjects() *graphicsObjects {
-	if activeGraphicsObjects == nil {
-		initActiveGraphicsObjs()
-	}
+	onceGraphicsObjects.Do(initActiveGraphicsObjs)
 	return activeGraphicsObjects
 }
 

@@ -35,10 +35,7 @@ type inputManager struct {
 const inputManagerQueueSize int = 10
 
 var inputManagerObj *inputManager
-
-func init() {
-	initInputManager()
-}
+var once sync.Once
 
 func initInputManager() {
 	logger.LOG.Info().Msg("Creating new Input Manager!")
@@ -66,9 +63,7 @@ func initInputManager() {
 }
 
 func GetInputManager() *inputManager {
-	if inputManagerObj == nil {
-		initInputManager()
-	}
+	once.Do(initInputManager)
 	return inputManagerObj
 }
 

@@ -11,10 +11,6 @@ const (
 	Pressed  KeyState = 1
 )
 
-func MouseButtonToKey(m glfw.MouseButton) int {
-	return (-1 * int(m)) - 2
-}
-
 type Key glfw.Key
 
 const (
@@ -30,6 +26,10 @@ const (
 type Action glfw.Action
 
 const (
-	Press Action = Action(glfw.Press)
+	Press   Action = Action(glfw.Press)
 	Release Action = Action(glfw.Release)
 )
+
+func MouseButtonToKey(m glfw.MouseButton) int {
+	return (-1 * int(m)) - 2
+}

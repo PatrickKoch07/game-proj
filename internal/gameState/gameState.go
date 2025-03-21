@@ -1,22 +1,28 @@
 package gameState
 
+import (
+	"sync"
+
+	"github.com/PatrickKoch07/game-proj/internal/logger"
+)
+
 type gameState struct {
 	currentState map[string]uint8
 	futureState  map[string]uint8
 }
 
 var currentGameState *gameState
+var once sync.Once
 
 func initCurrentGameState() {
+	logger.LOG.Debug().Msg("Creating new GameState.")
 	currentGameState = new(gameState)
 	currentGameState.currentState = make(map[string]uint8)
 	currentGameState.futureState = make(map[string]uint8)
 }
 
 func GetCurrentGameState() *gameState {
-	if currentGameState == nil {
-		initCurrentGameState()
-	}
+	once.Do(initCurrentGameState)
 	return currentGameState
 }
 

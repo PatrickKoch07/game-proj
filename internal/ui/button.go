@@ -18,8 +18,6 @@ type button struct {
 }
 
 func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sprite, error) {
-	logger.LOG.Info().Msg("Creating new button")
-
 	b := new(button)
 
 	sprite, err := sprites.CreateSprite(
@@ -55,7 +53,7 @@ func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sp
 }
 
 func (b *button) OnKeyAction(action inputs.Action) {
-	mX := cursor.GetCursor().ScreenX
+	mX, mY := cursor.GetCursorScreenPosition()
 	if mX <= b.Sprite.ScreenX {
 		return
 	}
@@ -63,7 +61,6 @@ func (b *button) OnKeyAction(action inputs.Action) {
 		return
 	}
 
-	mY := cursor.GetCursor().ScreenY
 	if mY <= b.Sprite.ScreenY {
 		return
 	}

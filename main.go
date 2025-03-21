@@ -14,7 +14,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
-var TARGET_FPS int = 60
+const TARGET_FPS float64 = 60.0
 
 func init() {
 	logger.LOG.Info().Msg("Init main")
@@ -106,7 +106,8 @@ func setupFramerateCap() func() {
 	// fpsLogger := logger.LOG.Sample(&zerolog.BasicSampler{N: uint32(TARGET_FPS)})
 
 	return func() {
-		targetFrameDur := time.Duration(int(1.0/float64(TARGET_FPS)*1000.0) * int(time.Millisecond))
+		targetMilliseconds := 1.0 / TARGET_FPS * 1000.0
+		targetFrameDur := time.Duration(int(targetMilliseconds) * int(time.Millisecond))
 		waitTime := max(targetFrameDur-time.Since(last_frame_start_time), 1)
 		<-time.NewTicker(waitTime).C
 

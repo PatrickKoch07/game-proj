@@ -5,6 +5,7 @@ package cursor
 
 import (
 	"weak"
+	"sync"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
@@ -14,11 +15,10 @@ import (
 )
 
 var gameCursor *sprites.Sprite
+var once sync.Once
 
 func GetCursor() *sprites.Sprite {
-	if gameCursor == nil {
-		initCursor()
-	}
+	once.Do(initCursor)
 	return gameCursor
 }
 
@@ -29,6 +29,9 @@ func GetCursorScreenPosition() (float32, float32) {
 func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 	// called on the main thread from GLFW poll events (don't worry about concurrency)
 
+	if gameCursor == nil {
+		return
+	}
 	// virtual mouse position in opengl
 	w.SetCursorPos(0, 0)
 	// logger.LOG.Debug().Msgf("Mouse moved (%v, %v)", xpos, ypos)
