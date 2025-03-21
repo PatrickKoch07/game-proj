@@ -18,11 +18,11 @@ import (
 var activeGraphicsObjects *graphicsObjects
 var onceGraphicsObjects sync.Once
 
-// This should be fixed by getting from gamestate TODO
+// This should be fixed sometime?
 var screenHeight int
 var screenWidth int
 
-func SetShaderScreenSize(sWidth int, sHeight int) {
+func SetScreenSize(sWidth int, sHeight int) {
 	screenHeight = sHeight
 	screenWidth = sWidth
 }

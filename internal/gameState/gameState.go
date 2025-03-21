@@ -7,8 +7,8 @@ import (
 )
 
 type gameState struct {
-	currentState map[string]uint8
-	futureState  map[string]uint8
+	currentState map[Flag]int
+	futureState  map[Flag]int
 }
 
 var currentGameState *gameState
@@ -17,8 +17,8 @@ var once sync.Once
 func initCurrentGameState() {
 	logger.LOG.Debug().Msg("Creating new GameState.")
 	currentGameState = new(gameState)
-	currentGameState.currentState = make(map[string]uint8)
-	currentGameState.futureState = make(map[string]uint8)
+	currentGameState.currentState = make(map[Flag]int)
+	currentGameState.futureState = make(map[Flag]int)
 }
 
 func GetCurrentGameState() *gameState {
@@ -26,17 +26,23 @@ func GetCurrentGameState() *gameState {
 	return currentGameState
 }
 
-func UpdateCurrentContext() {
-
+func (gs *gameState) UpdateCurrentContext() {
+	// run in the main loop
+	for key, item := range gs.futureState {
+		gs.currentState[key] = item
+	}
+	gs.futureState = make(map[Flag]int)
 }
 
-func GetFlagValue(flag string) (uint8, bool) {
-	val, ok := currentGameState.currentState[flag]
+func (gs *gameState) GetFlagValue(flag Flag) (int, bool) {
+	// needs a lock
+	val, ok := gs.currentState[flag]
 	return val, ok
 }
 
-func SetFlagValue(flag string, value uint8) {
-	currentGameState.futureState[flag] = value
+func (gs *gameState) SetFlagValue(flag Flag, value int) {
+	// needs a lock
+	gs.futureState[flag] = value
 }
 
 // this will hold if the UI said to close, or if a scene change was requested

@@ -6,16 +6,13 @@ import (
 
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/gameObjects"
+	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
-	"github.com/PatrickKoch07/game-proj/internal/ui"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
-
-// should be fixed by gamestate TODO
-var nextSceneName string
 
 type globalScene struct {
 	// object instances to update not related to any scene in particular (ex. player character)
@@ -25,26 +22,40 @@ type globalScene struct {
 	currentScene  *Scene
 }
 
-func init() {
-	nextSceneName = ""
-}
-
 func popNextScene() *Scene {
-	defer func() { nextSceneName = "" }()
+	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.NextScene)
+	if !ok || val == 0 {
+		return nil
+	}
 
-	switch nextSceneName {
-	case "titleScene":
+	defer func() { gameState.GetCurrentGameState().SetFlagValue(gameState.NextScene, 0) }()
+
+	switch val {
+	case int(gameState.TitleScene):
 		return createTitleScene()
-	case "worldScene":
+	case int(gameState.WorldScene):
 		return createWorldScene()
 	default:
-		logger.LOG.Error().Msgf("Bad scene name: %v", nextSceneName)
+		logger.LOG.Error().Msgf("Bad scene value: %v", val)
 		return nil
 	}
 }
 
 func isNextSceneRequested() bool {
-	return nextSceneName != ""
+	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.NextScene)
+	if !ok {
+		return false
+	}
+	return val != 0
+}
+
+func wasCloseRequested() bool {
+	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.CloseRequested)
+	if !ok {
+		return false
+	}
+	gameState.GetCurrentGameState().SetFlagValue(gameState.CloseRequested, 0)
+	return val == 1
 }
 
 func CreateGlobalScene() *globalScene {
@@ -57,12 +68,12 @@ func CreateGlobalScene() *globalScene {
 	// ... append(activeGameState.GlobalSprites, ...pcSprite)
 	activeGameState.currentScene = createTitleScene()
 	activeGameState.currentScene.Init(activeGameState.currentScene)
-	activeGameState.addToCurrentScene()
+	activeGameState.addToScene(activeGameState.currentScene)
 	return activeGameState
 }
 
-func (gs *globalScene) addToCurrentScene() {
-	gs.currentScene.Sprites = append(gs.currentScene.Sprites, gs.GlobalSprites...)
+func (gs *globalScene) addToScene(scene *Scene) {
+	scene.Sprites = append(scene.Sprites, gs.GlobalSprites...)
 	for _, gameObj := range gs.GlobalGameObjects {
 		if gameObj == nil {
 			continue
@@ -73,7 +84,7 @@ func (gs *globalScene) addToCurrentScene() {
 
 func (gs *globalScene) Update() {
 	// Call on the main thread
-	if ui.WasCloseRequested() {
+	if wasCloseRequested() {
 		glfw.GetCurrentContext().SetShouldClose(true)
 		return
 	}
@@ -86,7 +97,7 @@ func (gs *globalScene) Update() {
 func (gs *globalScene) SwitchScene() {
 	nextScene := popNextScene()
 	if nextScene == nil {
-		logger.LOG.Error().Msg("Bad scene name give to switch to. Ignoring switch.")
+		logger.LOG.Error().Msg("Ignoring scene switch.")
 		return
 	}
 	// block below draws the loading screen
@@ -102,16 +113,18 @@ func (gs *globalScene) SwitchScene() {
 	glfw.GetCurrentContext().SwapBuffers()
 
 	// gameState specific logic goes here
+	// => load gameobject info of scene, if exists
 	//
 
-	// load next scene
-	gs.addToCurrentScene()
+	// create next scene
+	gs.addToScene(nextScene)
 	nextScene.Init(nextScene)
 	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
 	UnloadUncommonGraphicObjs(gs.currentScene, nextScene)
 	for _, sprite := range gs.GlobalSprites {
 		sprites.AddToDrawingQueue(weak.Make(sprite))
 	}
+	// try to load previous scene info
 	// dummy line to let me see the loading screen
 	time.Sleep(2 * time.Second)
 	StopDrawingScene(loadingScene)

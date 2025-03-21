@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
+	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/scenes"
@@ -15,6 +16,8 @@ import (
 )
 
 const TARGET_FPS float64 = 60.0
+const SCREEN_X int = 1280
+const SCREEN_Y int = 960
 
 func init() {
 	logger.LOG.Info().Msg("Init main")
@@ -40,8 +43,10 @@ func main() {
 	defer glfw.Terminate()
 	window := createWindow()
 
-	GlobalScene := scenes.CreateGlobalScene()
+	// holds current scene and game objects
 	InputManager := inputs.GetInputManager()
+	GlobalScene := scenes.CreateGlobalScene()
+	GameState := gameState.GetCurrentGameState()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
 		// clear previous rendering
@@ -55,6 +60,9 @@ func main() {
 		glfw.PollEvents()
 		InputManager.Notify()
 
+		// set any changes to the gamestate since the last scene update
+		GameState.UpdateCurrentContext()
+
 		// update objects
 		GlobalScene.Update()
 	}
@@ -63,7 +71,7 @@ func main() {
 func createWindow() *glfw.Window {
 	logger.LOG.Info().Msg("Creating new window")
 
-	window, err := glfw.CreateWindow(1280, 960, "Patrick's Game", nil, nil)
+	window, err := glfw.CreateWindow(SCREEN_X, SCREEN_Y, "Patrick's Game", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +87,8 @@ func createWindow() *glfw.Window {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	sprites.SetShaderScreenSize(1280, 960)
+	cursor.SetScreenSize(SCREEN_X, SCREEN_Y)
+	sprites.SetScreenSize(SCREEN_X, SCREEN_Y)
 
 	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)

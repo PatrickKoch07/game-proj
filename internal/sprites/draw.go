@@ -91,9 +91,9 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 }
 
 func AddToDrawingQueue(w weak.Pointer[Sprite]) {
-	drawQueue.PushFront(w)
-	if drawQueue.Len() > 100 {
-		logger.LOG.Warn().Msgf("Draw Queue is getting long. Len: %v", drawQueue.Len())
+	getDrawQueue().PushFront(w)
+	if getDrawQueue().Len() > 100 {
+		logger.LOG.Warn().Msgf("Draw Queue is getting long. Len: %v", getDrawQueue().Len())
 	}
 	logger.LOG.Debug().Msgf(
 		"Added draw object to the draw queue (ShaderID: %v, TextureID: %v): %v",

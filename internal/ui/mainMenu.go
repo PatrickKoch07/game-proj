@@ -1,17 +1,14 @@
 package ui
 
 import (
+	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
-// solved by game state TODO
-var exitRequested bool = false
-
 type MainMenu struct {
-	playButton      *button
-	exitButton      *button
-	SwitchSceneFunc func()
+	playButton *button
+	exitButton *button
 }
 
 func (mm MainMenu) ShouldSkipUpdate() bool {
@@ -32,7 +29,7 @@ func (mm MainMenu) InitInstance() ([]*sprites.Sprite, bool) {
 		logger.LOG.Error().Err(err).Msg("")
 	} else {
 		mm.playButton = playButton
-		mm.playButton.OnPress = mm.SwitchSceneFunc
+		mm.playButton.OnPress = switchScene
 		sprites[0] = sprite
 	}
 
@@ -50,14 +47,12 @@ func (mm MainMenu) InitInstance() ([]*sprites.Sprite, bool) {
 	return sprites[:], creationSuccess
 }
 
-func WasCloseRequested() bool {
-	return exitRequested
+func switchScene() {
+	gameState.GetCurrentGameState().SetFlagValue(gameState.NextScene, int(gameState.WorldScene))
 }
 
 func exitGame() {
-	exitRequested = true
-	// pretty sure below should only get called on the main thread...
-	// glfw.GetCurrentContext().SetShouldClose(true)
+	gameState.GetCurrentGameState().SetFlagValue(gameState.CloseRequested, 1)
 }
 
 func almostExitGame() {

@@ -16,7 +16,7 @@ func createTitleScene() *Scene {
 
 func initTitleScene(titleScene *Scene) {
 	// should be a better solution than reallllly remembering to do this before the init
-	mm := ui.MainMenu{SwitchSceneFunc: flagSceneSwitch}
+	mm := ui.MainMenu{}
 	buttonSprites, ok := mm.InitInstance()
 	if !ok {
 		logger.LOG.Error().Msg("Issue initializing main menu")
@@ -27,9 +27,4 @@ func initTitleScene(titleScene *Scene) {
 		titleScene.GameObjects = append(titleScene.GameObjects, mm)
 		titleScene.Sprites = append(titleScene.Sprites, buttonSprites...)
 	}
-}
-
-func flagSceneSwitch() {
-	logger.LOG.Debug().Msg("Starting switch scene process")
-	nextSceneName = "worldScene"
 }
