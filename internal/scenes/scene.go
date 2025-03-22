@@ -4,7 +4,6 @@ import (
 	"sync"
 	"weak"
 
-	"github.com/PatrickKoch07/game-proj/internal/gameObjects"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
@@ -13,11 +12,10 @@ type Scene struct {
 	// On switch, what graphics objects to potentially stop drawing & which to switch out
 	Sprites []*sprites.Sprite
 	// What objects to update
-	GameObjects []gameObjects.GameObject
-	Init        func(*Scene)
+	GameObjects []GameObject
 }
 
-func UnloadUncommonGraphicObjs(current *Scene, next *Scene) {
+func unloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	nextShaders := make(map[uint32]struct{})
 	nextTextures := make(map[uint32]struct{})
 	nextVAOs := make(map[uint32]struct{})
@@ -47,7 +45,7 @@ func UnloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	}
 }
 
-func StopDrawingScene(s *Scene) {
+func stopDrawingScene(s *Scene) {
 	for _, sprite := range s.Sprites {
 		if sprite == nil {
 			continue

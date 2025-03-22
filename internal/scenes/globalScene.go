@@ -1,11 +1,10 @@
 package scenes
 
 import (
-	"time"
+	"sync"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
-	"github.com/PatrickKoch07/game-proj/internal/gameObjects"
 	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
@@ -16,29 +15,60 @@ import (
 
 type globalScene struct {
 	// object instances to update not related to any scene in particular (ex. player character)
-	GlobalGameObjects []*gameObjects.GameObject
+	GlobalGameObjects []*GameObject
 	// sprites to keep on display (ex. the cursor or some UI)
-	GlobalSprites []*sprites.Sprite
-	currentScene  *Scene
+	GlobalSprites    []*sprites.Sprite
+	loadingSceneFlag gameState.Flag
+	sceneMap         map[gameState.Flag]func() *Scene
+	currentScene     *Scene
 }
 
-func popNextScene() *Scene {
+var activeGlobalScene *globalScene
+var once sync.Once
+
+func GetGlobalScene() *globalScene {
+	once.Do(func() { createGlobalScene() })
+	return activeGlobalScene
+}
+
+func createGlobalScene() {
+	// Call on the main thread
+	activeGlobalScene = new(globalScene)
+	activeGlobalScene.GlobalSprites = append(activeGlobalScene.GlobalSprites, cursor.GetCursor())
+	// pc := new(gameObjects.PlayerCharacter)
+	// pcSprites, ok := pc.InitInstance()
+	// ... append(activeGameState.GlobalGameObjects, &pc)
+	// ... append(activeGameState.GlobalSprites, ...pcSprite)
+}
+
+func (gs *globalScene) InitializeGlobalScene(
+	sceneMap map[gameState.Flag]func() *Scene,
+	firstScene gameState.Flag,
+	loadingScene gameState.Flag,
+) {
+	gs.sceneMap = make(map[gameState.Flag]func() *Scene)
+	gs.sceneMap = sceneMap
+	gs.currentScene = sceneMap[firstScene]()
+	activeGlobalScene.addToScene(activeGlobalScene.currentScene)
+	gs.loadingSceneFlag = loadingScene
+}
+
+func (gs *globalScene) popNextScene() (func() *Scene, bool) {
+	default_func := func() *Scene { return new(Scene) }
+
 	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.NextScene)
-	if !ok || val == 0 {
-		return nil
-	}
-
 	defer func() { gameState.GetCurrentGameState().SetFlagValue(gameState.NextScene, 0) }()
-
-	switch val {
-	case int(gameState.TitleScene):
-		return createTitleScene()
-	case int(gameState.WorldScene):
-		return createWorldScene()
-	default:
-		logger.LOG.Error().Msgf("Bad scene value: %v", val)
-		return nil
+	if !ok || val == 0 {
+		return default_func, false
 	}
+
+	nextSceneFunc, ok := gs.sceneMap[gameState.Flag(val)]
+	if !ok {
+		logger.LOG.Error().Msgf("Bad scene value: %v", val)
+		return default_func, false
+	}
+
+	return nextSceneFunc, true
 }
 
 func isNextSceneRequested() bool {
@@ -58,18 +88,9 @@ func wasCloseRequested() bool {
 	return val == 1
 }
 
-func CreateGlobalScene() *globalScene {
-	// Call on the main thread
-	activeGameState := new(globalScene)
-	activeGameState.GlobalSprites = append(activeGameState.GlobalSprites, cursor.GetCursor())
-	// pc := new(gameObjects.PlayerCharacter)
-	// pcSprites, ok := pc.InitInstance()
-	// ... append(activeGameState.GlobalGameObjects, &pc)
-	// ... append(activeGameState.GlobalSprites, ...pcSprite)
-	activeGameState.currentScene = createTitleScene()
-	activeGameState.currentScene.Init(activeGameState.currentScene)
-	activeGameState.addToScene(activeGameState.currentScene)
-	return activeGameState
+func (gs *globalScene) useLoadingScene() bool {
+	val, ok := gameState.GetCurrentGameState().GetFlagValue(gs.loadingSceneFlag)
+	return ok && val != 0
 }
 
 func (gs *globalScene) addToScene(scene *Scene) {
@@ -78,7 +99,7 @@ func (gs *globalScene) addToScene(scene *Scene) {
 		if gameObj == nil {
 			continue
 		}
-		gs.currentScene.GameObjects = append(gs.currentScene.GameObjects, *gameObj)
+		scene.GameObjects = append(gs.currentScene.GameObjects, *gameObj)
 	}
 }
 
@@ -89,45 +110,45 @@ func (gs *globalScene) Update() {
 		return
 	}
 	if isNextSceneRequested() {
-		gs.SwitchScene()
+		gs.switchScene()
 	}
 	updateSceneGameObjects(gs.currentScene)
 }
 
-func (gs *globalScene) SwitchScene() {
-	nextScene := popNextScene()
-	if nextScene == nil {
+func (gs *globalScene) switchScene() {
+	nextSceneFunc, ok := gs.popNextScene()
+	if !ok {
 		logger.LOG.Error().Msg("Ignoring scene switch.")
 		return
 	}
+
 	// block below draws the loading screen
-	StopDrawingScene(gs.currentScene)
-	logger.LOG.Debug().Msg("Drawing loading screen")
-	loadingScene := createLoadingScene()
-	loadingScene.Init(loadingScene)
-	// clear previous rendering
-	gl.Clear(gl.COLOR_BUFFER_BIT)
-	gl.Clear(gl.DEPTH_BUFFER_BIT)
-	// draw
-	sprites.DrawDrawQueue()
-	glfw.GetCurrentContext().SwapBuffers()
+	stopDrawingScene(gs.currentScene)
+
+	if gs.useLoadingScene() {
+		logger.LOG.Debug().Msg("Drawing loading screen")
+		loadingScene := gs.sceneMap[gs.loadingSceneFlag]()
+		defer stopDrawingScene(loadingScene)
+		// clear previous rendering
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.Clear(gl.DEPTH_BUFFER_BIT)
+		// draw
+		sprites.DrawDrawQueue()
+		glfw.GetCurrentContext().SwapBuffers()
+	}
 
 	// gameState specific logic goes here
 	// => load gameobject info of scene, if exists
 	//
 
 	// create next scene
+	nextScene := nextSceneFunc()
 	gs.addToScene(nextScene)
-	nextScene.Init(nextScene)
 	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
-	UnloadUncommonGraphicObjs(gs.currentScene, nextScene)
+	unloadUncommonGraphicObjs(gs.currentScene, nextScene)
 	for _, sprite := range gs.GlobalSprites {
 		sprites.AddToDrawingQueue(weak.Make(sprite))
 	}
-	// try to load previous scene info
-	// dummy line to let me see the loading screen
-	time.Sleep(2 * time.Second)
-	StopDrawingScene(loadingScene)
 
 	gs.currentScene = nextScene
 }

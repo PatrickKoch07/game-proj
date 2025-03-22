@@ -11,6 +11,8 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/scenes"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 
+	"github.com/PatrickKoch07/game-proj/internal/myGame/gameScenes"
+
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
@@ -45,7 +47,12 @@ func main() {
 
 	// holds current scene and game objects
 	InputManager := inputs.GetInputManager()
-	GlobalScene := scenes.CreateGlobalScene()
+	GlobalScene := scenes.GetGlobalScene()
+	GlobalScene.InitializeGlobalScene(
+		gameScenes.GetSceneMap(), 
+		gameState.TitleScene, 
+		gameState.LoadingScene,
+	)
 	GameState := gameState.GetCurrentGameState()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {

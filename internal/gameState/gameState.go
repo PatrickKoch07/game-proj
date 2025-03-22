@@ -6,6 +6,7 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 )
 
+// not quite a sync.map because we want to force the switch between the current/dirty map
 type gameState struct {
 	currentState map[Flag]int
 	futureState  map[Flag]int

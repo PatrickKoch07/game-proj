@@ -1,14 +1,15 @@
-package scenes
+package gameScenes
 
 import (
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
+	"github.com/PatrickKoch07/game-proj/internal/scenes"
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
-func createLoadingScene() *Scene {
-	loadingScene := new(Scene)
+func createLoadingScene() *scenes.Scene {
+	loadingScene := new(scenes.Scene)
 	loadingScene.Sprites = make([]*sprites.Sprite, 1)
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
@@ -31,11 +32,7 @@ func createLoadingScene() *Scene {
 	} else {
 		loadingScene.Sprites[0] = sprite
 	}
-	loadingScene.Init = initLoadingScene
+	sprites.AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
 
 	return loadingScene
-}
-
-func initLoadingScene(loadingScene *Scene) {
-	sprites.AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
 }

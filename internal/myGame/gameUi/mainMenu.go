@@ -1,4 +1,4 @@
-package ui
+package gameUi
 
 import (
 	"github.com/PatrickKoch07/game-proj/internal/gameState"
