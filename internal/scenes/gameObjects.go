@@ -26,7 +26,7 @@ func InitOnCurrentScene(gameObj GameObject, draw bool) {
 	GetGlobalScene().currentScene.AddToGameObjects(gameObj)
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
 		}
 	}
 }
@@ -50,7 +50,7 @@ func InitOnGlobalScene(gameObj GameObject, draw bool) {
 	}
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
 		}
 	}
 }
@@ -68,7 +68,7 @@ func InitOnScene(scene *Scene, gameObj GameObject, draw bool) {
 	scene.AddToGameObjects(gameObj)
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
 		}
 	}
 }

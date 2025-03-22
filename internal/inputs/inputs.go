@@ -77,14 +77,44 @@ func (k *inputManager) GetKeyState(key Key) (KeyState, bool) {
 
 // locks to be thread safe
 func (k *inputManager) Subscribe(key Key, w weak.Pointer[InputListener]) bool {
-	if _, ok := k.keyListeners[key]; !ok {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	listenerList, ok := k.keyListeners[key]
+	if !ok {
 		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
 
-	k.mu.Lock()
+	for listElem := listenerList.Front(); listElem != nil; {
+		// if we encounter nil valued elem, we delete. So should store next here.
+		nextListElem := listElem.Next()
+
+		switch listener := listElem.Value.(type) {
+		case nil:
+			logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
+			k.keyListeners[key].Remove(listElem)
+		case weak.Pointer[InputListener]:
+			strongListener := listener.Value()
+			if strongListener == nil {
+				logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", key)
+				k.keyListeners[key].Remove(listElem)
+			} else if listener == w {
+				logger.LOG.Debug().Msgf("(Key: %v) This subscriber already exists here", key)
+				return true
+			}
+		default:
+			logger.LOG.Fatal().Msgf("(Key: %v) Found listener not a weakptr to InputListener. %v",
+				key,
+				listener,
+			)
+		}
+
+		listElem = nextListElem
+	}
+
 	k.keyListeners[key].PushFront(w)
-	k.mu.Unlock()
+
 	if k.keyListeners[key].Len() > 10 {
 		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
 	}
@@ -97,14 +127,15 @@ func (k *inputManager) Subscribe(key Key, w weak.Pointer[InputListener]) bool {
 }
 
 func (k *inputManager) Unsubscribe(key Key, w weak.Pointer[InputListener]) error {
+	// lock here to stop inserting/deleting in the middle of someone else's loop.
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
 	listenerList, ok := k.keyListeners[key]
 	if !ok {
 		return errors.New("key does not exist")
 	}
 
-	// lock here to stop inserting/deleting in the middle of someone else's loop.
-	k.mu.Lock()
-	defer k.mu.Unlock()
 	for listElem := listenerList.Front(); listElem != nil; {
 		// if we encounter nil valued elem, we delete. So should store next here.
 		nextListElem := listElem.Next()

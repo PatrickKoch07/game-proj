@@ -98,10 +98,34 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 	return &sprite, nil
 }
 
-func (dq *drawingQueue) AddToDrawingQueue(w weak.Pointer[Sprite]) {
+func (dq *drawingQueue) AddToQueue(w weak.Pointer[Sprite]) {
 	dq.mu.Lock()
+	defer dq.mu.Unlock()
+
+	// checking if this is already in the queue
+	listElem := dq.queue.Front()
+	for listElem != nil {
+		nextListElem := listElem.Next()
+
+		weakSprite, ok := listElem.Value.(weak.Pointer[Sprite])
+		if !ok {
+			logger.LOG.Fatal().Msg("Saw a non-drawQueueObject in the Draw Queue.")
+		}
+
+		if weakSprite.Value() == nil {
+			logger.LOG.Debug().Msg("Removed a nil draw Object (object got Gc'd)")
+			dq.queue.Remove(listElem)
+		} else if weakSprite == w {
+			logger.LOG.Warn().Msg("object already in queue. Not adding again.")
+			dq.queue.Remove(listElem)
+			return
+		}
+
+		listElem = nextListElem
+	}
+
 	dq.queue.PushFront(w)
-	dq.mu.Unlock()
+
 	if dq.queue.Len() > 100 {
 		logger.LOG.Warn().Msgf("Draw Queue is getting long. Len: %v", dq.queue.Len())
 	}
@@ -113,7 +137,7 @@ func (dq *drawingQueue) AddToDrawingQueue(w weak.Pointer[Sprite]) {
 	)
 }
 
-func (dq *drawingQueue) RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool) {
+func (dq *drawingQueue) RemoveFromQueue(w weak.Pointer[Sprite]) (ok bool) {
 	logger.LOG.Debug().Msgf(
 		"Manually removing object from the drawQueue (ShaderID: %v, TextureID: %v): %v",
 		w.Value().shaderId,
@@ -123,6 +147,7 @@ func (dq *drawingQueue) RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool)
 
 	dq.mu.Lock()
 	defer dq.mu.Unlock()
+
 	listElem := dq.queue.Front()
 	for listElem != nil {
 		nextListElem := listElem.Next()
@@ -148,7 +173,7 @@ func (dq *drawingQueue) RemoveFromDrawingQueue(w weak.Pointer[Sprite]) (ok bool)
 }
 
 // should always be called in the main thread (glfw & gl)
-func (dq *drawingQueue) DrawDrawQueue() {
+func (dq *drawingQueue) Draw() {
 	listElem := dq.queue.Front()
 	for listElem != nil {
 		nextListElem := listElem.Next()

@@ -41,6 +41,9 @@ func (gs *gameState) UpdateCurrentContext() {
 // So, should be thread safe for concurrent reading
 func (gs *gameState) GetFlagValue(flag Flag) (int32, bool) {
 	val, ok := gs.currentState[flag]
+	if val == nil {
+		return 0, false
+	}
 	return val.Load(), ok
 }
 

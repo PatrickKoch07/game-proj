@@ -53,7 +53,7 @@ func stopDrawingScene(s *Scene) {
 		if sprite == nil {
 			continue
 		}
-		ok := sprites.GetDrawQueue().RemoveFromDrawingQueue(weak.Make(sprite))
+		ok := sprites.GetDrawQueue().RemoveFromQueue(weak.Make(sprite))
 		if !ok {
 			logger.LOG.Warn().Msg("Issue with removing object from drawing queue. Trying to continue")
 		}

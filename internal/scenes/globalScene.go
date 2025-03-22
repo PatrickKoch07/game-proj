@@ -187,7 +187,7 @@ func (gs *globalScene) switchScene() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
 		// draw
-		sprites.GetDrawQueue().DrawDrawQueue()
+		sprites.GetDrawQueue().Draw()
 		glfw.GetCurrentContext().SwapBuffers()
 	}
 
@@ -201,7 +201,7 @@ func (gs *globalScene) switchScene() {
 	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
 	unloadUncommonGraphicObjs(gs.currentScene, nextScene)
 	for _, sprite := range gs.GlobalSprites {
-		sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
+		sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
 	}
 
 	gs.currentScene = nextScene

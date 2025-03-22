@@ -71,7 +71,7 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
 		// draw
-		DrawQueue.DrawDrawQueue()
+		DrawQueue.Draw()
 		window.SwapBuffers()
 	}
 }
