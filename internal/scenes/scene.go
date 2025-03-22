@@ -59,7 +59,7 @@ func StopDrawingScene(s *Scene) {
 	}
 }
 
-func UpdateSceneGameObjects(currentScene *Scene) {
+func updateSceneGameObjects(currentScene *Scene) {
 	// called in main game loop
 	var wg sync.WaitGroup
 	for _, gameObject := range currentScene.GameObjects {
@@ -67,7 +67,7 @@ func UpdateSceneGameObjects(currentScene *Scene) {
 			continue
 		}
 		wg.Add(1)
-		go gameObject.Update()
+		go func() { defer wg.Done(); gameObject.Update() }()
 	}
 	wg.Wait()
 }

@@ -49,13 +49,6 @@ func main() {
 	GameState := gameState.GetCurrentGameState()
 	// Logger to sample fps every second
 	for capFPS := setupFramerateCap(); !window.ShouldClose(); capFPS() {
-		// clear previous rendering
-		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.Clear(gl.DEPTH_BUFFER_BIT)
-		// draw
-		sprites.DrawDrawQueue()
-		window.SwapBuffers()
-
 		// deal with inputs
 		glfw.PollEvents()
 		InputManager.Notify()
@@ -65,6 +58,13 @@ func main() {
 
 		// update objects
 		GlobalScene.Update()
+
+		// clear previous rendering
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.Clear(gl.DEPTH_BUFFER_BIT)
+		// draw
+		sprites.DrawDrawQueue()
+		window.SwapBuffers()
 	}
 }
 

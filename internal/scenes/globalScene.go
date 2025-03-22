@@ -91,7 +91,7 @@ func (gs *globalScene) Update() {
 	if isNextSceneRequested() {
 		gs.SwitchScene()
 	}
-	UpdateSceneGameObjects(gs.currentScene)
+	updateSceneGameObjects(gs.currentScene)
 }
 
 func (gs *globalScene) SwitchScene() {
