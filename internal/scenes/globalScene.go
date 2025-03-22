@@ -21,6 +21,7 @@ type globalScene struct {
 	loadingSceneFlag gameState.Flag
 	sceneMap         map[gameState.Flag]func() *Scene
 	currentScene     *Scene
+	mu               sync.Mutex
 }
 
 var activeGlobalScene *globalScene
@@ -32,15 +33,11 @@ func GetGlobalScene() *globalScene {
 }
 
 func createGlobalScene() {
-	// Call on the main thread
 	activeGlobalScene = new(globalScene)
 	activeGlobalScene.GlobalSprites = append(activeGlobalScene.GlobalSprites, cursor.GetCursor())
-	// pc := new(gameObjects.PlayerCharacter)
-	// pcSprites, ok := pc.InitInstance()
-	// ... append(activeGameState.GlobalGameObjects, &pc)
-	// ... append(activeGameState.GlobalSprites, ...pcSprite)
 }
 
+// should only be called in the main thread
 func (gs *globalScene) InitializeGlobalScene(
 	sceneMap map[gameState.Flag]func() *Scene,
 	firstScene gameState.Flag,
@@ -53,6 +50,57 @@ func (gs *globalScene) InitializeGlobalScene(
 	gs.loadingSceneFlag = loadingScene
 }
 
+// thread safe by locking
+func (gs *globalScene) AddToSprites(sprites ...*sprites.Sprite) {
+	gs.mu.Lock()
+	gs.GlobalSprites = append(gs.GlobalSprites, sprites...)
+	gs.mu.Unlock()
+}
+
+// thread safe by locking
+func (gs *globalScene) RemoveFromSprites(sprite *sprites.Sprite) {
+	gs.mu.Lock()
+	var index int = -1
+	for ind, val := range gs.GlobalSprites {
+		if val == sprite {
+			index = ind
+			break
+		}
+	}
+	if index == -1 {
+		return
+	}
+	gs.GlobalSprites[index] = gs.GlobalSprites[len(gs.GlobalSprites)-1]
+	gs.GlobalSprites = gs.GlobalSprites[:len(gs.GlobalSprites)-1]
+	gs.mu.Unlock()
+}
+
+// thread safe by locking
+func (gs *globalScene) RemoveFromGameObjects(gameObj *GameObject) {
+	gs.mu.Lock()
+	var index int = -1
+	for ind, val := range gs.GlobalGameObjects {
+		if val == gameObj {
+			index = ind
+			break
+		}
+	}
+	if index == -1 {
+		return
+	}
+	gs.GlobalGameObjects[index] = gs.GlobalGameObjects[len(gs.GlobalGameObjects)-1]
+	gs.GlobalGameObjects = gs.GlobalGameObjects[:len(gs.GlobalGameObjects)-1]
+	gs.mu.Unlock()
+}
+
+// thread safe by locking
+func (gs *globalScene) AddToGameObjects(gameObjs ...*GameObject) {
+	gs.mu.Lock()
+	gs.GlobalGameObjects = append(gs.GlobalGameObjects, gameObjs...)
+	gs.mu.Unlock()
+}
+
+// should only be called in the main thread
 func (gs *globalScene) popNextScene() (func() *Scene, bool) {
 	default_func := func() *Scene { return new(Scene) }
 
@@ -71,6 +119,7 @@ func (gs *globalScene) popNextScene() (func() *Scene, bool) {
 	return nextSceneFunc, true
 }
 
+// should only be called in the main thread
 func isNextSceneRequested() bool {
 	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.NextScene)
 	if !ok {
@@ -79,6 +128,7 @@ func isNextSceneRequested() bool {
 	return val != 0
 }
 
+// should only be called in the main thread
 func wasCloseRequested() bool {
 	val, ok := gameState.GetCurrentGameState().GetFlagValue(gameState.CloseRequested)
 	if !ok {
@@ -88,11 +138,13 @@ func wasCloseRequested() bool {
 	return val == 1
 }
 
+// should only be called in the main thread
 func (gs *globalScene) useLoadingScene() bool {
 	val, ok := gameState.GetCurrentGameState().GetFlagValue(gs.loadingSceneFlag)
 	return ok && val != 0
 }
 
+// should only be called in the main thread
 func (gs *globalScene) addToScene(scene *Scene) {
 	scene.Sprites = append(scene.Sprites, gs.GlobalSprites...)
 	for _, gameObj := range gs.GlobalGameObjects {
@@ -103,6 +155,7 @@ func (gs *globalScene) addToScene(scene *Scene) {
 	}
 }
 
+// should only be called in the main thread
 func (gs *globalScene) Update() {
 	// Call on the main thread
 	if wasCloseRequested() {
@@ -115,6 +168,7 @@ func (gs *globalScene) Update() {
 	updateSceneGameObjects(gs.currentScene)
 }
 
+// should only be called in the main thread
 func (gs *globalScene) switchScene() {
 	nextSceneFunc, ok := gs.popNextScene()
 	if !ok {
@@ -133,7 +187,7 @@ func (gs *globalScene) switchScene() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
 		// draw
-		sprites.DrawDrawQueue()
+		sprites.GetDrawQueue().DrawDrawQueue()
 		glfw.GetCurrentContext().SwapBuffers()
 	}
 
@@ -147,7 +201,7 @@ func (gs *globalScene) switchScene() {
 	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
 	unloadUncommonGraphicObjs(gs.currentScene, nextScene)
 	for _, sprite := range gs.GlobalSprites {
-		sprites.AddToDrawingQueue(weak.Make(sprite))
+		sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
 	}
 
 	gs.currentScene = nextScene

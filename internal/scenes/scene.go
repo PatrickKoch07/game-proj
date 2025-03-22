@@ -13,8 +13,10 @@ type Scene struct {
 	Sprites []*sprites.Sprite
 	// What objects to update
 	GameObjects []GameObject
+	mu          sync.Mutex
 }
 
+// (should be) called in the main thread
 func unloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	nextShaders := make(map[uint32]struct{})
 	nextTextures := make(map[uint32]struct{})
@@ -45,20 +47,21 @@ func unloadUncommonGraphicObjs(current *Scene, next *Scene) {
 	}
 }
 
+// (should be) called in the main thread
 func stopDrawingScene(s *Scene) {
 	for _, sprite := range s.Sprites {
 		if sprite == nil {
 			continue
 		}
-		ok := sprites.RemoveFromDrawingQueue(weak.Make(sprite))
+		ok := sprites.GetDrawQueue().RemoveFromDrawingQueue(weak.Make(sprite))
 		if !ok {
 			logger.LOG.Warn().Msg("Issue with removing object from drawing queue. Trying to continue")
 		}
 	}
 }
 
+// (should be) called in the main thread
 func updateSceneGameObjects(currentScene *Scene) {
-	// called in main game loop
 	var wg sync.WaitGroup
 	for _, gameObject := range currentScene.GameObjects {
 		if gameObject.ShouldSkipUpdate() {
@@ -68,4 +71,54 @@ func updateSceneGameObjects(currentScene *Scene) {
 		go func() { defer wg.Done(); gameObject.Update() }()
 	}
 	wg.Wait()
+}
+
+// thread safe by locking
+func (s *Scene) AddToSprites(sprites ...*sprites.Sprite) {
+	s.mu.Lock()
+	s.Sprites = append(s.Sprites, sprites...)
+	s.mu.Unlock()
+}
+
+// thread safe by locking
+func (s *Scene) RemoveFromSprites(sprite *sprites.Sprite) {
+	s.mu.Lock()
+	var index int = -1
+	for ind, val := range s.Sprites {
+		if val == sprite {
+			index = ind
+			break
+		}
+	}
+	if index == -1 {
+		return
+	}
+	s.Sprites[index] = s.Sprites[len(s.Sprites)-1]
+	s.Sprites = s.Sprites[:len(s.Sprites)-1]
+	s.mu.Unlock()
+}
+
+// thread safe by locking
+func (s *Scene) RemoveFromGameObjects(gameObj GameObject) {
+	s.mu.Lock()
+	var index int = -1
+	for ind, val := range s.GameObjects {
+		if val == gameObj {
+			index = ind
+			break
+		}
+	}
+	if index == -1 {
+		return
+	}
+	s.GameObjects[index] = s.GameObjects[len(s.GameObjects)-1]
+	s.GameObjects = s.GameObjects[:len(s.GameObjects)-1]
+	s.mu.Unlock()
+}
+
+// thread safe by locking
+func (s *Scene) AddToGameObjects(gameObjs ...GameObject) {
+	s.mu.Lock()
+	s.GameObjects = append(s.GameObjects, gameObjs...)
+	s.mu.Unlock()
 }

@@ -29,6 +29,7 @@ type inputManager struct {
 	keyStates      map[Key]KeyState
 	keyActionQueue []KeyAction
 	keyListeners   map[Key]*list.List
+	mu             sync.Mutex
 }
 
 // 10 seems like a large number for every frame's worth of inputs
@@ -67,18 +68,23 @@ func GetInputManager() *inputManager {
 	return inputManagerObj
 }
 
+// Gets the state of a key. Should** (see Notify function) be thread safe since all inputs dealt
+// with at once during dedicated main thread time.
 func (k *inputManager) GetKeyState(key Key) (KeyState, bool) {
 	value, ok := k.keyStates[key]
 	return value, ok
 }
 
+// locks to be thread safe
 func (k *inputManager) Subscribe(key Key, w weak.Pointer[InputListener]) bool {
 	if _, ok := k.keyListeners[key]; !ok {
 		logger.LOG.Error().Msgf("Trying to subscribe to bad key: %v", key)
 		return ok
 	}
 
+	k.mu.Lock()
 	k.keyListeners[key].PushFront(w)
+	k.mu.Unlock()
 	if k.keyListeners[key].Len() > 10 {
 		logger.LOG.Warn().Msgf("(Key: %v) Listener list has a lot of listeners (> 10).", key)
 	}
@@ -96,6 +102,9 @@ func (k *inputManager) Unsubscribe(key Key, w weak.Pointer[InputListener]) error
 		return errors.New("key does not exist")
 	}
 
+	// lock here to stop inserting/deleting in the middle of someone else's loop.
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	for listElem := listenerList.Front(); listElem != nil; {
 		// if we encounter nil valued elem, we delete. So should store next here.
 		nextListElem := listElem.Next()
@@ -136,6 +145,7 @@ func (k *inputManager) Unsubscribe(key Key, w weak.Pointer[InputListener]) error
 	return errors.New("no listener to be removed")
 }
 
+// (should be) run in the main thread only
 func (k *inputManager) Notify() {
 	var wg sync.WaitGroup
 	// for all Actions in input queue

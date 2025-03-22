@@ -48,7 +48,7 @@ func (mm MainMenu) InitInstance() ([]*sprites.Sprite, bool) {
 }
 
 func switchScene() {
-	gameState.GetCurrentGameState().SetFlagValue(gameState.NextScene, int(gameState.WorldScene))
+	gameState.GetCurrentGameState().SetFlagValue(gameState.NextScene, int32(gameState.WorldScene))
 }
 
 func exitGame() {

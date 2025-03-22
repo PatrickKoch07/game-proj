@@ -62,7 +62,7 @@ func initCursor() {
 	}
 	gameCursor = sprite
 
-	sprites.AddToDrawingQueue(weak.Make(gameCursor))
+	sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(gameCursor))
 }
 
 func SetScreenSize(sWidth int, sHeight int) {

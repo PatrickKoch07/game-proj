@@ -22,15 +22,11 @@ func InitOnCurrentScene(gameObj GameObject, draw bool) {
 		return
 	}
 
-	GetGlobalScene().currentScene.Sprites = append(
-		GetGlobalScene().currentScene.Sprites, Sprites...,
-	)
-	GetGlobalScene().currentScene.GameObjects = append(
-		GetGlobalScene().currentScene.GameObjects, gameObj,
-	)
+	GetGlobalScene().currentScene.AddToSprites(Sprites...)
+	GetGlobalScene().currentScene.AddToGameObjects(gameObj)
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
 		}
 	}
 }
@@ -45,19 +41,16 @@ func InitOnGlobalScene(gameObj GameObject, draw bool) {
 		logger.LOG.Error().Msgf("Error creating game object: %v", gameObj)
 		return
 	}
-	GetGlobalScene().GlobalSprites = append(GetGlobalScene().GlobalSprites, Sprites...)
-	GetGlobalScene().GlobalGameObjects = append(GetGlobalScene().GlobalGameObjects, &gameObj)
+
+	GetGlobalScene().AddToSprites(Sprites...)
+	GetGlobalScene().AddToGameObjects(&gameObj)
 	if GetGlobalScene().currentScene != nil {
-		GetGlobalScene().currentScene.Sprites = append(
-			GetGlobalScene().currentScene.Sprites, Sprites...,
-		)
-		GetGlobalScene().currentScene.GameObjects = append(
-			GetGlobalScene().currentScene.GameObjects, gameObj,
-		)
+		GetGlobalScene().currentScene.AddToSprites(Sprites...)
+		GetGlobalScene().currentScene.AddToGameObjects(gameObj)
 	}
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
 		}
 	}
 }
@@ -71,15 +64,11 @@ func InitOnScene(scene *Scene, gameObj GameObject, draw bool) {
 		return
 	}
 
-	scene.Sprites = append(
-		scene.Sprites, Sprites...,
-	)
-	scene.GameObjects = append(
-		scene.GameObjects, gameObj,
-	)
+	scene.AddToSprites(Sprites...)
+	scene.AddToGameObjects(gameObj)
 	if draw {
 		for _, sprite := range Sprites {
-			sprites.AddToDrawingQueue(weak.Make(sprite))
+			sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(sprite))
 		}
 	}
 }

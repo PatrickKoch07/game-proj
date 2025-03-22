@@ -32,7 +32,7 @@ func createLoadingScene() *scenes.Scene {
 	} else {
 		loadingScene.Sprites[0] = sprite
 	}
-	sprites.AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
+	sprites.GetDrawQueue().AddToDrawingQueue(weak.Make(loadingScene.Sprites[0]))
 
 	return loadingScene
 }

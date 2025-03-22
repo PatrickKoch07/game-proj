@@ -1,6 +1,6 @@
 package gameState
 
-type Flag int
+type Flag int32
 
 const (
 	// reserve 0 for the OFF state incase you use flags to point to other flags

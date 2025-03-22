@@ -47,10 +47,11 @@ func main() {
 
 	// holds current scene and game objects
 	InputManager := inputs.GetInputManager()
+	DrawQueue := sprites.GetDrawQueue()
 	GlobalScene := scenes.GetGlobalScene()
 	GlobalScene.InitializeGlobalScene(
-		gameScenes.GetSceneMap(), 
-		gameState.TitleScene, 
+		gameScenes.GetSceneMap(),
+		gameState.TitleScene,
 		gameState.LoadingScene,
 	)
 	GameState := gameState.GetCurrentGameState()
@@ -70,7 +71,7 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
 		// draw
-		sprites.DrawDrawQueue()
+		DrawQueue.DrawDrawQueue()
 		window.SwapBuffers()
 	}
 }
