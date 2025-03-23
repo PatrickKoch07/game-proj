@@ -122,3 +122,7 @@ func (s *Scene) AddToGameObjects(gameObjs ...GameObject) {
 	s.GameObjects = append(s.GameObjects, gameObjs...)
 	s.mu.Unlock()
 }
+
+func (s *Scene) KillGameObjects() {
+	// TODO
+}

@@ -2,6 +2,7 @@ package scenes
 
 import (
 	"sync"
+	"time"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
@@ -15,7 +16,7 @@ import (
 
 type globalScene struct {
 	// object instances to update not related to any scene in particular (ex. player character)
-	GlobalGameObjects []*GameObject
+	GlobalGameObjects []GameObject
 	// sprites to keep on display (ex. the cursor or some UI)
 	GlobalSprites    []*sprites.Sprite
 	loadingSceneFlag gameState.Flag
@@ -76,7 +77,7 @@ func (gs *globalScene) RemoveFromSprites(sprite *sprites.Sprite) {
 }
 
 // thread safe by locking
-func (gs *globalScene) RemoveFromGameObjects(gameObj *GameObject) {
+func (gs *globalScene) RemoveFromGameObjects(gameObj GameObject) {
 	gs.mu.Lock()
 	var index int = -1
 	for ind, val := range gs.GlobalGameObjects {
@@ -94,7 +95,7 @@ func (gs *globalScene) RemoveFromGameObjects(gameObj *GameObject) {
 }
 
 // thread safe by locking
-func (gs *globalScene) AddToGameObjects(gameObjs ...*GameObject) {
+func (gs *globalScene) AddToGameObjects(gameObjs ...GameObject) {
 	gs.mu.Lock()
 	gs.GlobalGameObjects = append(gs.GlobalGameObjects, gameObjs...)
 	gs.mu.Unlock()
@@ -147,12 +148,7 @@ func (gs *globalScene) useLoadingScene() bool {
 // should only be called in the main thread
 func (gs *globalScene) addToScene(scene *Scene) {
 	scene.Sprites = append(scene.Sprites, gs.GlobalSprites...)
-	for _, gameObj := range gs.GlobalGameObjects {
-		if gameObj == nil {
-			continue
-		}
-		scene.GameObjects = append(gs.currentScene.GameObjects, *gameObj)
-	}
+	scene.GameObjects = append(gs.currentScene.GameObjects, gs.GlobalGameObjects...)
 }
 
 // should only be called in the main thread
@@ -178,6 +174,7 @@ func (gs *globalScene) switchScene() {
 
 	// block below draws the loading screen
 	stopDrawingScene(gs.currentScene)
+	// TODO kill gameobjects but not the ones also in globalScene
 
 	if gs.useLoadingScene() {
 		logger.LOG.Debug().Msg("Drawing loading screen")
@@ -189,6 +186,7 @@ func (gs *globalScene) switchScene() {
 		// draw
 		sprites.GetDrawQueue().Draw()
 		glfw.GetCurrentContext().SwapBuffers()
+		time.Sleep(2 * time.Second)
 	}
 
 	// gameState specific logic goes here

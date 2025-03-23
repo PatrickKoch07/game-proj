@@ -52,6 +52,10 @@ func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sp
 	return b, sprite, nil
 }
 
+func (b *button) UnsubInput() {
+	inputs.GetInputManager().Unsubscribe(inputs.LMB, weak.Make(&b.inputListener))
+}
+
 func (b *button) OnKeyAction(action inputs.Action) {
 	mX, mY := cursor.GetCursorScreenPosition()
 	if mX <= b.Sprite.ScreenX {

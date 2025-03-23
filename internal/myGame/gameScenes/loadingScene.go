@@ -9,6 +9,8 @@ import (
 )
 
 func createLoadingScene() *scenes.Scene {
+	logger.LOG.Info().Msg("Making loadingScene")
+
 	loadingScene := new(scenes.Scene)
 	loadingScene.Sprites = make([]*sprites.Sprite, 1)
 	sprite, err := sprites.CreateSprite(

@@ -88,7 +88,7 @@ func createWindow() *glfw.Window {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
-	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
+	gl.ClearColor(1.0, 1.0, 1.0, 0.0)
 	// gl.Viewport(0, 0, 1280, 960)
 	gl.Enable(gl.BLEND)
 	gl.DepthFunc(gl.LESS)
