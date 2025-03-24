@@ -1,10 +1,11 @@
 package scenes
 
 import (
+	"slices"
 	"sync"
 	"time"
-	"weak"
 
+	"github.com/PatrickKoch07/game-proj/internal/audio"
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -14,15 +15,30 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+const largeNumberOfSprites int = 100
+const largeNumberOfAudioPlayers int = 20
+
+// context to bind sprites, game objects and audio to. Separate from scene as this is meant to last
+// for the whole duration of the game. as such, handles the switching between scenes
 type globalScene struct {
-	// object instances to update not related to any scene in particular (ex. player character)
+	// object instances to update not related to any scene in particular (ex. player character).
 	GlobalGameObjects []GameObject
 	// sprites to keep on display (ex. the cursor or some UI)
-	GlobalSprites    []*sprites.Sprite
+	// Even if these sprites are kept referenced by the gameobjects, its nice to directly know
+	// which sprites are still used when scenes change so their shader info doesn't delete.
+	GlobalSprites []*sprites.Sprite
+	// audio objects to keep on (ex. audio related to the gameObjects)
+	// Likewise to sprites, audio kept here will still be playing/not be reloaded between scene
+	// switching.
+	GlobalAudioPlayers []*audio.Player
+	// technically this could be user defined, but with how many loading screens there are in
+	// games these days, I added it to the core game engine structure
 	loadingSceneFlag gameState.Flag
-	sceneMap         map[gameState.Flag]func() *Scene
-	currentScene     *Scene
-	mu               sync.Mutex
+	// To be loaded from the main function on game start. whatever is fed in should be user defined
+	sceneMap map[gameState.Flag]func() *Scene
+
+	currentScene *Scene
+	mu           sync.Mutex
 }
 
 var activeGlobalScene *globalScene
@@ -47,50 +63,47 @@ func (gs *globalScene) InitializeGlobalScene(
 	gs.sceneMap = make(map[gameState.Flag]func() *Scene)
 	gs.sceneMap = sceneMap
 	gs.currentScene = sceneMap[firstScene]()
-	activeGlobalScene.addToScene(activeGlobalScene.currentScene)
 	gs.loadingSceneFlag = loadingScene
 }
 
 // thread safe by locking
-func (gs *globalScene) AddToSprites(sprites ...*sprites.Sprite) {
+func (gs *globalScene) AddToSprites(newSprites ...*sprites.Sprite) {
 	gs.mu.Lock()
-	gs.GlobalSprites = append(gs.GlobalSprites, sprites...)
+	gs.GlobalSprites = append(gs.GlobalSprites, newSprites...)
+	if len(gs.GlobalSprites) > largeNumberOfSprites {
+		gs.GlobalSprites = slices.DeleteFunc(
+			gs.GlobalSprites,
+			func(heldSprite *sprites.Sprite) bool {
+				return heldSprite.IsNil()
+			},
+		)
+	}
 	gs.mu.Unlock()
 }
 
 // thread safe by locking
 func (gs *globalScene) RemoveFromSprites(sprite *sprites.Sprite) {
 	gs.mu.Lock()
-	var index int = -1
-	for ind, val := range gs.GlobalSprites {
-		if val == sprite {
-			index = ind
-			break
-		}
-	}
-	if index == -1 {
-		return
-	}
-	gs.GlobalSprites[index] = gs.GlobalSprites[len(gs.GlobalSprites)-1]
-	gs.GlobalSprites = gs.GlobalSprites[:len(gs.GlobalSprites)-1]
-	gs.mu.Unlock()
-}
+	// var index int = -1
+	// for ind, val := range gs.GlobalSprites {
+	// 	if val == sprite {
+	// 		index = ind
+	// 		break
+	// 	}
+	// }
+	// if index == -1 {
+	// 	return
+	// }
+	// gs.GlobalSprites[index] = gs.GlobalSprites[len(gs.GlobalSprites)-1]
+	// gs.GlobalSprites = gs.GlobalSprites[:len(gs.GlobalSprites)-1]
 
-// thread safe by locking
-func (gs *globalScene) RemoveFromGameObjects(gameObj GameObject) {
-	gs.mu.Lock()
-	var index int = -1
-	for ind, val := range gs.GlobalGameObjects {
-		if val == gameObj {
-			index = ind
-			break
-		}
-	}
-	if index == -1 {
-		return
-	}
-	gs.GlobalGameObjects[index] = gs.GlobalGameObjects[len(gs.GlobalGameObjects)-1]
-	gs.GlobalGameObjects = gs.GlobalGameObjects[:len(gs.GlobalGameObjects)-1]
+	gs.GlobalSprites = slices.DeleteFunc(
+		gs.GlobalSprites,
+		func(heldSprite *sprites.Sprite) bool {
+			return &heldSprite == &sprite
+		},
+	)
+
 	gs.mu.Unlock()
 }
 
@@ -98,6 +111,57 @@ func (gs *globalScene) RemoveFromGameObjects(gameObj GameObject) {
 func (gs *globalScene) AddToGameObjects(gameObjs ...GameObject) {
 	gs.mu.Lock()
 	gs.GlobalGameObjects = append(gs.GlobalGameObjects, gameObjs...)
+	gs.mu.Unlock()
+}
+
+// thread safe by locking
+func (gs *globalScene) RemoveFromGameObjects(gameObj GameObject) {
+	gs.mu.Lock()
+	// var index int = -1
+	// for ind, val := range gs.GlobalGameObjects {
+	// 	if val == gameObj {
+	// 		index = ind
+	// 		break
+	// 	}
+	// }
+	// if index == -1 {
+	// 	return
+	// }
+	// gs.GlobalGameObjects[index] = gs.GlobalGameObjects[len(gs.GlobalGameObjects)-1]
+	// gs.GlobalGameObjects = gs.GlobalGameObjects[:len(gs.GlobalGameObjects)-1]
+
+	gs.GlobalGameObjects = slices.DeleteFunc(
+		gs.GlobalGameObjects,
+		func(heldGameObj GameObject) bool {
+			return heldGameObj == gameObj
+		},
+	)
+
+	gs.mu.Unlock()
+}
+
+func (gs *globalScene) AddToAudio(audioPlayers ...*audio.Player) {
+	gs.mu.Lock()
+	gs.GlobalAudioPlayers = append(gs.GlobalAudioPlayers, audioPlayers...)
+	if len(gs.GlobalAudioPlayers) > largeNumberOfAudioPlayers {
+		gs.GlobalAudioPlayers = slices.DeleteFunc(
+			gs.GlobalAudioPlayers,
+			func(heldAudioPlayer *audio.Player) bool {
+				return (*heldAudioPlayer).IsNil()
+			},
+		)
+	}
+	gs.mu.Unlock()
+}
+
+func (gs *globalScene) RemoveFromAudio(audioPlayer *audio.Player) {
+	gs.mu.Lock()
+	gs.GlobalAudioPlayers = slices.DeleteFunc(
+		gs.GlobalAudioPlayers,
+		func(heldAudioPlayer *audio.Player) bool {
+			return &heldAudioPlayer == &audioPlayer
+		},
+	)
 	gs.mu.Unlock()
 }
 
@@ -146,12 +210,6 @@ func (gs *globalScene) useLoadingScene() bool {
 }
 
 // should only be called in the main thread
-func (gs *globalScene) addToScene(scene *Scene) {
-	scene.Sprites = append(scene.Sprites, gs.GlobalSprites...)
-	scene.GameObjects = append(gs.currentScene.GameObjects, gs.GlobalGameObjects...)
-}
-
-// should only be called in the main thread
 func (gs *globalScene) Update() {
 	// Call on the main thread
 	if wasCloseRequested() {
@@ -161,7 +219,9 @@ func (gs *globalScene) Update() {
 	if isNextSceneRequested() {
 		gs.switchScene()
 	}
-	updateSceneGameObjects(gs.currentScene)
+
+	gs.currentScene.GameObjects = updateGameObjects(gs.currentScene.GameObjects)
+	gs.GlobalGameObjects = updateGameObjects(gs.GlobalGameObjects)
 }
 
 // should only be called in the main thread
@@ -172,35 +232,44 @@ func (gs *globalScene) switchScene() {
 		return
 	}
 
-	// block below draws the loading screen
-	stopDrawingScene(gs.currentScene)
-	// TODO kill gameobjects but not the ones also in globalScene
+	killScene(gs.currentScene)
 
 	if gs.useLoadingScene() {
 		logger.LOG.Debug().Msg("Drawing loading screen")
 		loadingScene := gs.sceneMap[gs.loadingSceneFlag]()
-		defer stopDrawingScene(loadingScene)
+		defer killScene(loadingScene)
 		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
 		// draw
 		sprites.GetDrawQueue().Draw()
 		glfw.GetCurrentContext().SwapBuffers()
-		time.Sleep(2 * time.Second)
+		// I added this so I can see some of the loading screen at least
+		time.Sleep(1 * time.Second)
 	}
 
 	// gameState specific logic goes here
-	// => load gameobject info of scene, if exists
+	// ex. load info of scene, if exists
 	//
 
 	// create next scene
 	nextScene := nextSceneFunc()
-	gs.addToScene(nextScene)
 	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
-	unloadUncommonGraphicObjs(gs.currentScene, nextScene)
-	for _, sprite := range gs.GlobalSprites {
-		sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
-	}
+
+	// clean up resources
+	gs.GlobalAudioPlayers = slices.DeleteFunc(
+		gs.GlobalAudioPlayers,
+		func(audioPlayer *audio.Player) bool {
+			return (*audioPlayer).IsNil()
+		},
+	)
+	gs.GlobalSprites = slices.DeleteFunc(
+		gs.GlobalSprites,
+		func(heldSprite *sprites.Sprite) bool {
+			return heldSprite.IsNil()
+		},
+	)
+	unloadUncommonGraphicObjs(gs.currentScene, nextScene, gs.GlobalSprites)
 
 	gs.currentScene = nextScene
 }

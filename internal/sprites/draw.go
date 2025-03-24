@@ -3,6 +3,7 @@ package sprites
 import (
 	"container/list"
 	"sync"
+	"sync/atomic"
 	"weak"
 
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -19,6 +20,11 @@ type Sprite struct {
 	// from 0.0 to 1.0, Where the origin of the object is on the sprite (top left is 0.0, 0.0)
 	originSpriteX float32
 	originSpriteY float32
+
+	// Sprites cannot be deleted in isolation because the shaderId, textureId, or VAO might be used
+	// by some other object. So this is marked for lazy deletion (do not draw), to be deleted
+	// from the GPU and 'cache' system in shader.go when its okay to do the expensive checking.
+	lazyDeletionMark atomic.Bool
 }
 
 func (s *Sprite) GetShaderId() uint32 {
@@ -31,6 +37,16 @@ func (s *Sprite) GetTextureId() uint32 {
 
 func (s *Sprite) GetVAO() uint32 {
 	return s.vao
+}
+
+func (s *Sprite) Clear() error {
+	GetDrawQueue().RemoveFromQueue(weak.Make(s))
+	s.lazyDeletionMark.Store(true)
+	return nil
+}
+
+func (s *Sprite) IsNil() bool {
+	return s.lazyDeletionMark.Load()
 }
 
 type SpriteInitParams struct {
@@ -71,6 +87,7 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 	logger.LOG.Info().Msg("Creating new sprite")
 
 	sprite := Sprite{}
+	sprite.lazyDeletionMark.Store(false)
 
 	var err error
 	sprite.shaderId, err = getShader(initParams.ShaderRelPaths)
@@ -184,7 +201,7 @@ func (dq *drawingQueue) Draw() {
 		}
 
 		strongSprite := weakSprite.Value()
-		if strongSprite == nil {
+		if strongSprite == nil || strongSprite.IsNil() {
 			logger.LOG.Debug().Msg("Removed a nil draw Object (object got Gc'd)")
 			dq.queue.Remove(listElem)
 		} else {

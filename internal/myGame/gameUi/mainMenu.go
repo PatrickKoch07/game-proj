@@ -1,6 +1,9 @@
 package gameUi
 
 import (
+	"weak"
+
+	"github.com/PatrickKoch07/game-proj/internal/audio"
 	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
 	"github.com/PatrickKoch07/game-proj/internal/scenes"
@@ -21,13 +24,18 @@ func (mm MainMenu) Update() {
 	// maybe some animations later
 }
 
+func (mm MainMenu) IsDead() bool {
+	return false
+}
+
 func (mm MainMenu) Kill() {
 	mm.playButton.UnsubInput()
 	mm.exitButton.UnsubInput()
 }
 
-func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, bool) {
-	var sprites []*sprites.Sprite = make([]*sprites.Sprite, 2)
+func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []*audio.Player, bool) {
+	var Sprites []*sprites.Sprite = make([]*sprites.Sprite, 2)
+	var AudioPlayers []*audio.Player = make([]*audio.Player, 2)
 	creationSuccess := true
 
 	textPlaySprites, ok := text.TextToSprites("play", 584, 656, 1.75, 20)
@@ -37,15 +45,16 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, bool)
 			"failed to make some of the play button text sprites. trying to display anyway",
 		)
 	}
-	sprites = append(sprites, textPlaySprites...)
-	playButton, sprite, err := CreateButton(64, 256, 512, 640)
+	Sprites = append(Sprites, textPlaySprites...)
+	playButton, err := CreateButton(64, 256, 512, 640)
 	if err != nil {
 		creationSuccess = false
 		logger.LOG.Error().Err(err).Msg("")
 	} else {
 		mm.playButton = playButton
 		mm.playButton.OnPress = switchScene
-		sprites[0] = sprite
+		Sprites[0] = mm.playButton.Sprite
+		AudioPlayers[0] = mm.playButton.AudioPlayer
 	}
 
 	textExitSprites, ok := text.TextToSprites("exit", 584, 772, 1.75, 20)
@@ -55,8 +64,8 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, bool)
 			"failed to make some of the exit button text sprites. trying to display anyway",
 		)
 	}
-	sprites = append(sprites, textExitSprites...)
-	exitButton, sprite, err := CreateButton(64, 256, 512, 756)
+	Sprites = append(Sprites, textExitSprites...)
+	exitButton, err := CreateButton(64, 256, 512, 756)
 	if err != nil {
 		creationSuccess = false
 		logger.LOG.Error().Err(err).Msg("")
@@ -64,7 +73,8 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, bool)
 		mm.exitButton = exitButton
 		mm.exitButton.OnPress = almostExitGame
 		mm.exitButton.OnRelease = exitGame
-		sprites[1] = sprite
+		Sprites[1] = exitButton.Sprite
+		AudioPlayers[0] = mm.exitButton.AudioPlayer
 	}
 
 	textSprites, ok := text.TextToSprites("Welcome to the Game!", 192, 384, 3, 20)
@@ -72,9 +82,19 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, bool)
 		creationSuccess = false
 		logger.LOG.Error().Msg("failed to make some of the title text sprites. trying to display anyway")
 	}
-	sprites = append(sprites, textSprites...)
+	Sprites = append(Sprites, textSprites...)
 
-	return []scenes.GameObject{mm}, sprites, creationSuccess
+	for _, sprite := range Sprites {
+		if sprite == nil {
+			logger.LOG.Error().Msg(
+				"nil sprite encountered adding MainMenu sprites to draw queue (init)",
+			)
+		} else {
+			sprites.GetDrawQueue().AddToQueue(weak.Make(sprite))
+		}
+	}
+
+	return []scenes.GameObject{mm}, Sprites, AudioPlayers, creationSuccess
 }
 
 func switchScene() {

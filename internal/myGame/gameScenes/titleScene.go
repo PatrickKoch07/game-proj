@@ -11,6 +11,6 @@ func createTitleScene() *scenes.Scene {
 
 	titleScene := new(scenes.Scene)
 	mm := gameUi.MainMenu{}
-	scenes.InitOnScene(titleScene, scenes.GameObject(mm), true)
+	scenes.InitOnScene(titleScene, scenes.GameObject(mm))
 	return titleScene
 }

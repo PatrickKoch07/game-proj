@@ -4,6 +4,7 @@ import (
 	"errors"
 	"weak"
 
+	"github.com/PatrickKoch07/game-proj/internal/audio"
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
 	"github.com/PatrickKoch07/game-proj/internal/logger"
@@ -12,12 +13,13 @@ import (
 
 type button struct {
 	Sprite        *sprites.Sprite
+	AudioPlayer   *audio.Player
 	inputListener inputs.InputListener
 	OnPress       func()
 	OnRelease     func()
 }
 
-func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sprite, error) {
+func CreateButton(height, width, screenX, screenY float32) (*button, error) {
 	b := new(button)
 
 	sprite, err := sprites.CreateSprite(
@@ -35,7 +37,7 @@ func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sp
 		},
 	)
 	if err != nil {
-		return nil, sprite, err
+		return nil, err
 	}
 	b.Sprite = sprite
 	b.Sprite.Tex.DimX = width
@@ -47,9 +49,14 @@ func CreateButton(height, width, screenX, screenY float32) (*button, *sprites.Sp
 	b.inputListener = inputs.InputListener(b)
 	ok := inputs.GetInputManager().Subscribe(inputs.LMB, weak.Make(&b.inputListener))
 	if !ok {
-		return nil, sprite, errors.New("failed to subscribe")
+		return nil, errors.New("failed to subscribe")
 	}
-	return b, sprite, nil
+	b.AudioPlayer, err = audio.CreatePlayer("assets/audio/buttonPress.mp3")
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 func (b *button) UnsubInput() {
@@ -71,6 +78,8 @@ func (b *button) OnKeyAction(action inputs.Action) {
 	if mY >= b.Sprite.ScreenY+b.Sprite.Tex.DimY {
 		return
 	}
+
+	(*b.AudioPlayer).Play()
 
 	if action == inputs.Press {
 		logger.LOG.Debug().Msgf(

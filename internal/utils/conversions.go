@@ -16,3 +16,13 @@ func Float32SliceToString(floatArray []float32) string {
 	}
 	return outString
 }
+
+func getMapKeys[K comparable, V any](someMap map[K]V) []K {
+	keys := make([]K, len(someMap))
+	counter := 0
+	for key, _ := range someMap {
+		keys[counter] = key
+		counter++
+	}
+	return keys
+}
