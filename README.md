@@ -1,5 +1,5 @@
 # Game Project (Game-proj)
-A small project to learn Go, coming from a couple of years of (mostly analytic/scientific) Python experience. With learning Go as a priority, the number of external libraries are kept to a minimum, but libraries to deal with audio and graphic drivers are accepted.
+A small project to learn Go, coming from a couple of years of Python experience. With learning Go as a priority, the number of external libraries are kept to a minimum, but libraries to deal with audio and graphic drivers are accepted.
 
 Currently, the 'engine' has support for sprites, colliders, scenes, gamestates/global flags, rudimentary text, audio, and input actions.
 
