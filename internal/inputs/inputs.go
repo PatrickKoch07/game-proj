@@ -22,7 +22,7 @@ type KeyAction struct {
 }
 
 type InputListener interface {
-	OnKeyAction(Action)
+	OnKeyAction(KeyAction)
 }
 
 type inputManager struct {
@@ -201,14 +201,14 @@ func (k *inputManager) Notify() {
 					logger.LOG.Debug().Msgf("(Key: %v) Removed nil listener", ka.Key)
 					k.keyListeners[ka.Key].Remove(listElem)
 				} else {
-					logger.LOG.Debug().Msgf(
-						"(Key: %v) Input Manager notifying: %v",
-						ka.Key,
-						strongListener,
-					)
+					// logger.LOG.Debug().Msgf(
+					// 	"(Key: %v) Input Manager notifying: %v",
+					// 	ka.Key,
+					// 	strongListener,
+					// )
 
 					wg.Add(1)
-					go func() { defer wg.Done(); (*strongListener).OnKeyAction(ka.Action) }()
+					go func() { defer wg.Done(); (*strongListener).OnKeyAction(ka) }()
 				}
 			default:
 				logger.LOG.Fatal().Msgf(
@@ -255,7 +255,7 @@ func InputMouseCallback(
 }
 
 func (k *inputManager) push(ka KeyAction) error {
-	logger.LOG.Debug().Msgf("KeyPressQueue push() appended: %v", ka)
+	// logger.LOG.Debug().Msgf("KeyPressQueue push() appended: %v", ka)
 	k.keyActionQueue = append(k.keyActionQueue, ka)
 	if len(k.keyActionQueue) == cap(k.keyActionQueue) {
 		return errors.New("unexpectedly high number of inputs queued")

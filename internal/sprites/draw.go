@@ -15,11 +15,9 @@ type Sprite struct {
 	Tex      texture
 	vao      uint32
 	// Where the origin of the object is on the screen (top left is 0.0, 0.0)
-	ScreenX float32
-	ScreenY float32
+	ScreenCenter ScreenCoords
 	// from 0.0 to 1.0, Where the origin of the object is on the sprite (top left is 0.0, 0.0)
-	originSpriteX float32
-	originSpriteY float32
+	SpriteCenter SpriteCoords
 
 	// Sprites cannot be deleted in isolation because the shaderId, textureId, or VAO might be used
 	// by some other object. So this is marked for lazy deletion (do not draw), to be deleted
@@ -49,17 +47,29 @@ func (s *Sprite) IsNil() bool {
 	return s.lazyDeletionMark.Load()
 }
 
+type ScreenCoords struct {
+	X float32
+	Y float32
+}
+
+// X and Y must be between 0.0 and 1.0
+type SpriteCoords struct {
+	X float32
+	Y float32
+}
+
 type SpriteInitParams struct {
-	// TextureCoords must be: Bottom left, top left, top right, bottom left, top right, bottom right
 	ShaderRelPaths ShaderFiles
 	TextureRelPath string
-	TextureCoords  [12]float32
-	ScreenX        float32
-	ScreenY        float32
-	SpriteOriginX  float32
-	SpriteOriginY  float32
-	StretchX       float32
-	StretchY       float32
+	// TextureCoords must be: Bottom left, top left, top right, bottom left, top right, bottom right
+	TextureCoords [12]float32
+	// default position in screen: top left (0, 0)
+	ScreenCenter ScreenCoords
+	// default origin of sprite: upper left (0, 0)
+	SpriteCenter SpriteCoords
+	// default is 0.0 & 0.0. This means the object is 0x0. Please make this 1.0
+	StretchX float32
+	StretchY float32
 }
 
 type drawingQueue struct {
@@ -105,12 +115,10 @@ func CreateSprite(initParams *SpriteInitParams) (*Sprite, error) {
 
 	sprite.Tex.DimX *= initParams.StretchX
 	sprite.Tex.DimY *= initParams.StretchY
-	// default position in screen: top left
-	sprite.ScreenX = initParams.ScreenX
-	sprite.ScreenY = initParams.ScreenY
-	// origin of sprite: upper left
-	sprite.originSpriteX = initParams.SpriteOriginX
-	sprite.originSpriteY = initParams.SpriteOriginY
+	// default position in screen: top left (0, 0)
+	sprite.ScreenCenter = initParams.ScreenCenter
+	// default origin of sprite: upper left (0, 0)
+	sprite.SpriteCenter = initParams.SpriteCenter
 
 	return &sprite, nil
 }
@@ -205,10 +213,16 @@ func (dq *drawingQueue) Draw() {
 			logger.LOG.Debug().Msg("Removed a nil draw Object (object got Gc'd)")
 			dq.queue.Remove(listElem)
 		} else {
-			screenX, screenY := strongSprite.getShaderOriginInScreenSpace()
+			// The graphics card thinks the sprite center is the bottom left.
+			// The minus on the Y is because the Y coordinate direction is flipped in openGL,
+			// meaning its a right-handed system. So the bottom left is 0, 0
+			openGlScreenCenter := ScreenCoords{
+				X: strongSprite.ScreenCenter.X - strongSprite.SpriteCenter.X*strongSprite.Tex.DimX,
+				Y: strongSprite.ScreenCenter.Y - strongSprite.SpriteCenter.Y*strongSprite.Tex.DimY,
+			}
 
 			gl.UseProgram(strongSprite.shaderId)
-			setTransform(strongSprite.shaderId, screenX, screenY)
+			setTransform(strongSprite.shaderId, openGlScreenCenter)
 			setScale(strongSprite.shaderId, strongSprite.Tex.DimX, strongSprite.Tex.DimY)
 
 			gl.ActiveTexture(gl.TEXTURE0)
@@ -222,10 +236,9 @@ func (dq *drawingQueue) Draw() {
 	}
 }
 
-// technically shouldn't be part of sprite struct? but oh well, nobody else should use this anyway
-func (s *Sprite) getShaderOriginInScreenSpace() (x float32, y float32) {
-	// shader origin is defined as bottom left.
-	x = s.ScreenX - s.originSpriteX*s.Tex.DimX
-	y = s.ScreenY - s.originSpriteY*s.Tex.DimY
-	return x, y
+func (s *Sprite) SpriteCoordsToScreenCoords(spriteCoords SpriteCoords) ScreenCoords {
+	return ScreenCoords{
+		X: s.ScreenCenter.X + (s.SpriteCenter.X-s.SpriteCenter.X)*s.Tex.DimX,
+		Y: s.ScreenCenter.Y + (s.SpriteCenter.Y-s.SpriteCenter.Y)*s.Tex.DimY,
+	}
 }

@@ -10,7 +10,7 @@ out vec2 TexCoord;
 
 void main()
 {
-    gl_Position = projection * (transform * (scale * vec4(vPos.x, vPos.y, -vPos.y, 1.0f)));
+    gl_Position = projection * (transform * (scale * vec4(vPos.x, vPos.y, 1.0, 1.0f)));
     gl_Position.z = gl_Position.z * 0.8f + 0.2f;  // moves range of -1,1 to -.6,1
     TexCoord = vPos.zw;
 }

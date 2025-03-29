@@ -42,7 +42,7 @@ func (p *StaticPlayer) IsNil() bool {
 	return p.hasBeenClosed.Load()
 }
 
-func CreatePlayer(mp3FilePath string) (*Player, error) {
+func CreatePlayer(mp3FilePath string) (Player, error) {
 	fileBytes, err := os.ReadFile(mp3FilePath)
 	if err != nil {
 		return nil, err
@@ -56,5 +56,5 @@ func CreatePlayer(mp3FilePath string) (*Player, error) {
 	playerWrapper := StaticPlayer{Player: player}
 	playerWrapper.hasBeenClosed.Store(false)
 	publicPlayer := Player(&playerWrapper)
-	return &publicPlayer, nil
+	return publicPlayer, nil
 }

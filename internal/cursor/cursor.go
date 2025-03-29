@@ -45,14 +45,12 @@ func initCursor() {
 			TextureRelPath: "ui/cursor.png",
 			TextureCoords:  sprites.TexCoordOneSpritePerImg,
 			// inital callbacks make cursor jump to center of screen so this makes it not visual
-			ScreenX: -100.0,
-			ScreenY: -100.0,
+			ScreenCenter: sprites.ScreenCoords{X: -100.0, Y: -100.0},
 			// ScreenX:       0.0,
 			// ScreenY:       0.0,
-			SpriteOriginX: 0.0,
-			SpriteOriginY: 0.0,
-			StretchX:      1.0,
-			StretchY:      1.0,
+			SpriteCenter: sprites.SpriteCoords{X: 0.0, Y: 0.0},
+			StretchX:     1.0,
+			StretchY:     1.0,
 		},
 	)
 	if err != nil {
@@ -70,8 +68,8 @@ func SetScreenSize(sWidth int, sHeight int) {
 	screenWidth = float32(sWidth)
 }
 
-func GetCursorScreenPosition() (float32, float32) {
-	return GetCursor().ScreenX, GetCursor().ScreenY
+func ScreenPosition() sprites.ScreenCoords {
+	return GetCursor().ScreenCenter
 }
 
 func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
@@ -84,7 +82,9 @@ func UpdateMousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 	w.SetCursorPos(0, 0)
 	// logger.LOG.Debug().Msgf("Mouse moved (%v, %v)", xpos, ypos)
 
-	GetCursor().ScreenX = utils.Clamp(GetCursor().ScreenX+float32(xpos), 0.0, screenWidth)
-	GetCursor().ScreenY = utils.Clamp(GetCursor().ScreenY+float32(ypos), 0.0, screenHeight)
+	GetCursor().ScreenCenter = sprites.ScreenCoords{
+		X: utils.Clamp(GetCursor().ScreenCenter.X+float32(xpos), 0.0, screenWidth),
+		Y: utils.Clamp(GetCursor().ScreenCenter.Y+float32(ypos), 0.0, screenHeight),
+	}
 	// logger.LOG.Debug().Msgf("Mouse at (%v, %v)", GetCursor().Sprite.ScreenX, GetCursor().Sprite.ScreenY)
 }

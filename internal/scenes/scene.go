@@ -18,7 +18,7 @@ type Scene struct {
 	// What objects to update each frame and (maybe) kill between scenes
 	GameObjects []GameObject
 	// What audio objects to stop playing and (maybe) close between scenes.
-	AudioPlayers []*audio.Player
+	AudioPlayers []audio.Player
 	mu           sync.Mutex
 }
 
@@ -60,7 +60,7 @@ func unloadUncommonGraphicObjs(current *Scene, next *Scene, globalSprites []*spr
 
 // kills gameobjects, clears sprites, and clears audio. any race-y calls on objects killing them
 // should be okay because they have the same outcome ... ...
-func killScene(s *Scene) {
+func Kill(s *Scene) {
 	go clearSceneSprites(s)
 	go clearSceneAudio(s)
 	go killSceneGameObjects(s)
@@ -84,7 +84,7 @@ func clearSceneAudio(s *Scene) {
 			logger.LOG.Warn().Msg("Nil audioPlayer")
 			continue
 		}
-		err := (*audioPlayer).Clear()
+		err := audioPlayer.Clear()
 		if err != nil {
 			logger.LOG.Warn().Err(err).Msg("Trying to continue anyway")
 		}
@@ -157,13 +157,13 @@ func (s *Scene) RemoveFromGameObjects(gameObj GameObject) {
 	s.mu.Unlock()
 }
 
-func (s *Scene) AddToAudio(audioPlayers ...*audio.Player) {
+func (s *Scene) AddToAudio(audioPlayers ...audio.Player) {
 	s.mu.Lock()
 	s.AudioPlayers = append(s.AudioPlayers, audioPlayers...)
 	s.mu.Unlock()
 }
 
-func (s *Scene) RemoveFromAudio(audioPlayer *audio.Player) {
+func (s *Scene) RemoveFromAudio(audioPlayer audio.Player) {
 	s.mu.Lock()
 	var index int = -1
 	for ind, val := range s.AudioPlayers {

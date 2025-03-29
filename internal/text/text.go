@@ -13,7 +13,7 @@ const baseFontSize int = 16
 // -1 for maxWidth or maxHeight means no limit.
 // Max width and /n will tell the sprites when to jump to the next line
 func TextToSprites(
-	message string, bottomLeftX, bottomLeftY, scale float32, maxCharWidth int,
+	message string, bottomLeftScreenCoord sprites.ScreenCoords, scale float32, maxCharWidth int,
 ) ([]*sprites.Sprite, bool) {
 	textSprites := make([]*sprites.Sprite, len(message))
 	ok := true
@@ -26,9 +26,11 @@ func TextToSprites(
 			continue
 		}
 
-		screenX := bottomLeftX + float32(colCount*baseFontSize)*scale
-		screenY := bottomLeftY + float32(rowCount*baseFontSize)*scale
-		textSprite := runeToSprite(screenX, screenY, scale, char)
+		screenCoords := sprites.ScreenCoords{
+			X: bottomLeftScreenCoord.X + float32(colCount*baseFontSize)*scale,
+			Y: bottomLeftScreenCoord.Y + float32(rowCount*baseFontSize)*scale,
+		}
+		textSprite := runeToSprite(screenCoords, scale, char)
 		if textSprite == nil {
 			ok = false
 		} else {
@@ -43,7 +45,7 @@ func TextToSprites(
 	return textSprites, ok
 }
 
-func runeToSprite(screenX, screenY, scale float32, char rune) *sprites.Sprite {
+func runeToSprite(screenCoords sprites.ScreenCoords, scale float32, char rune) *sprites.Sprite {
 	var runeToCoords = map[rune][2]int{
 		'a': {0, 0}, 'b': {1, 0}, 'c': {2, 0}, 'd': {3, 0}, 'e': {4, 0}, 'f': {5, 0}, 'g': {6, 0},
 		'h': {0, 1}, 'i': {1, 1}, 'j': {2, 1}, 'k': {3, 1}, 'l': {4, 1}, 'm': {5, 1}, 'n': {6, 1},
@@ -54,10 +56,10 @@ func runeToSprite(screenX, screenY, scale float32, char rune) *sprites.Sprite {
 	}
 	char = unicode.ToLower(char)
 	// row number is actually the second value, ie. first row has a, b, c, ...
-	return makeSprite(screenX, screenY, scale, runeToCoords[char][1], runeToCoords[char][0])
+	return makeSprite(screenCoords, scale, runeToCoords[char][1], runeToCoords[char][0])
 }
 
-func makeSprite(screenX, screenY, scale float32, row, col int) *sprites.Sprite {
+func makeSprite(screenCoords sprites.ScreenCoords, scale float32, row, col int) *sprites.Sprite {
 	texCoords := [12]float32{
 		float32(col) / 7.0, float32(row) / 6.0,
 		float32(col) / 7.0, float32(row+1) / 6.0,
@@ -68,10 +70,12 @@ func makeSprite(screenX, screenY, scale float32, row, col int) *sprites.Sprite {
 		float32(col+1) / 7.0, float32(row) / 6.0,
 	}
 
-	return createSprite(screenX, screenY, scale, texCoords)
+	return createSprite(screenCoords, scale, texCoords)
 }
 
-func createSprite(screenX, screenY, scale float32, texCoords [12]float32) *sprites.Sprite {
+func createSprite(
+	screenCoords sprites.ScreenCoords, scale float32, texCoords [12]float32,
+) *sprites.Sprite {
 	sprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{
 			ShaderRelPaths: sprites.ShaderFiles{
@@ -81,10 +85,8 @@ func createSprite(screenX, screenY, scale float32, texCoords [12]float32) *sprit
 			// 6 rows of 7 columns of characters
 			TextureRelPath: "ui/font.png",
 			TextureCoords:  texCoords,
-			ScreenX:        screenX,
-			ScreenY:        screenY,
-			SpriteOriginX:  0.0,
-			SpriteOriginY:  0.0,
+			ScreenCenter:   screenCoords,
+			SpriteCenter:   sprites.SpriteCoords{X: 0.0, Y: 0.0},
 			StretchX:       fontSize * scale,
 			StretchY:       fontSize * scale,
 		},

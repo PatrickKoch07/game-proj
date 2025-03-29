@@ -15,7 +15,7 @@ import (
 // Current scene lifetime => make the object a gameobject and attach it to the currentScene
 // Some gameobject lifetime => make the object be called in the parent's kill function
 type GameObject interface {
-	InitInstance() ([]GameObject, []*sprites.Sprite, []*audio.Player, bool)
+	InitInstance() ([]GameObject, []*sprites.Sprite, []audio.Player, bool)
 	Update()
 	// If the gameobject is already loaded, but not yet 'ready' for play
 	ShouldSkipUpdate() bool

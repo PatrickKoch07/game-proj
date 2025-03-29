@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/PatrickKoch07/game-proj/internal/camera"
 	"github.com/PatrickKoch07/game-proj/internal/cursor"
 	"github.com/PatrickKoch07/game-proj/internal/gameState"
 	"github.com/PatrickKoch07/game-proj/internal/inputs"
@@ -74,6 +75,8 @@ func main() {
 		DrawQueue.Draw()
 		window.SwapBuffers()
 	}
+
+	GlobalScene.Kill()
 }
 
 func createWindow() *glfw.Window {
@@ -97,6 +100,7 @@ func createWindow() *glfw.Window {
 
 	cursor.SetScreenSize(SCREEN_X, SCREEN_Y)
 	sprites.SetScreenSize(SCREEN_X, SCREEN_Y)
+	camera.InitializeCamera(SCREEN_X, SCREEN_Y)
 
 	logger.LOG.Info().Msg("Setting window callbacks")
 	window.SetFocusCallback(captureMouseFocusCallback)

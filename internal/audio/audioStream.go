@@ -42,7 +42,7 @@ func (p *StreamPlayer) IsNil() bool {
 
 // This creates a file tied to the player which stays open while its being streamed.
 // For things that might play be played multiple times, use the non-streaming version
-func CreateStreamPlayer(mp3FilePath string) (*Player, error) {
+func CreateStreamPlayer(mp3FilePath string) (Player, error) {
 	file, err := os.Open(mp3FilePath)
 	decodedMp3, err := mp3.NewDecoder(file)
 	if err != nil {
@@ -52,5 +52,5 @@ func CreateStreamPlayer(mp3FilePath string) (*Player, error) {
 	streamPlayer := StreamPlayer{Player: player, file: file}
 	streamPlayer.hasBeenClosed.Store(false)
 	publicPlayer := Player(&streamPlayer)
-	return &publicPlayer, nil
+	return publicPlayer, nil
 }

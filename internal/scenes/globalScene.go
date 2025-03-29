@@ -30,7 +30,7 @@ type globalScene struct {
 	// audio objects to keep on (ex. audio related to the gameObjects)
 	// Likewise to sprites, audio kept here will still be playing/not be reloaded between scene
 	// switching.
-	GlobalAudioPlayers []*audio.Player
+	GlobalAudioPlayers []audio.Player
 	// technically this could be user defined, but with how many loading screens there are in
 	// games these days, I added it to the core game engine structure
 	loadingSceneFlag gameState.Flag
@@ -140,26 +140,26 @@ func (gs *globalScene) RemoveFromGameObjects(gameObj GameObject) {
 	gs.mu.Unlock()
 }
 
-func (gs *globalScene) AddToAudio(audioPlayers ...*audio.Player) {
+func (gs *globalScene) AddToAudio(audioPlayers ...audio.Player) {
 	gs.mu.Lock()
 	gs.GlobalAudioPlayers = append(gs.GlobalAudioPlayers, audioPlayers...)
 	if len(gs.GlobalAudioPlayers) > largeNumberOfAudioPlayers {
 		gs.GlobalAudioPlayers = slices.DeleteFunc(
 			gs.GlobalAudioPlayers,
-			func(heldAudioPlayer *audio.Player) bool {
-				return (*heldAudioPlayer).IsNil()
+			func(heldAudioPlayer audio.Player) bool {
+				return heldAudioPlayer.IsNil()
 			},
 		)
 	}
 	gs.mu.Unlock()
 }
 
-func (gs *globalScene) RemoveFromAudio(audioPlayer *audio.Player) {
+func (gs *globalScene) RemoveFromAudio(audioPlayer audio.Player) {
 	gs.mu.Lock()
 	gs.GlobalAudioPlayers = slices.DeleteFunc(
 		gs.GlobalAudioPlayers,
-		func(heldAudioPlayer *audio.Player) bool {
-			return &heldAudioPlayer == &audioPlayer
+		func(heldAudioPlayer audio.Player) bool {
+			return heldAudioPlayer == audioPlayer
 		},
 	)
 	gs.mu.Unlock()
@@ -232,12 +232,12 @@ func (gs *globalScene) switchScene() {
 		return
 	}
 
-	killScene(gs.currentScene)
+	Kill(gs.currentScene)
 
 	if gs.useLoadingScene() {
 		logger.LOG.Debug().Msg("Drawing loading screen")
 		loadingScene := gs.sceneMap[gs.loadingSceneFlag]()
-		defer killScene(loadingScene)
+		defer Kill(loadingScene)
 		// clear previous rendering
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.Clear(gl.DEPTH_BUFFER_BIT)
@@ -252,24 +252,63 @@ func (gs *globalScene) switchScene() {
 	// ex. load info of scene, if exists
 	//
 
-	// create next scene
-	nextScene := nextSceneFunc()
-	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
-
 	// clean up resources
 	gs.GlobalAudioPlayers = slices.DeleteFunc(
 		gs.GlobalAudioPlayers,
-		func(audioPlayer *audio.Player) bool {
-			return (*audioPlayer).IsNil()
+		func(audioPlayer audio.Player) bool {
+			return audioPlayer == nil || audioPlayer.IsNil()
 		},
 	)
 	gs.GlobalSprites = slices.DeleteFunc(
 		gs.GlobalSprites,
 		func(heldSprite *sprites.Sprite) bool {
-			return heldSprite.IsNil()
+			return heldSprite == nil || heldSprite.IsNil()
 		},
 	)
+	// create next scene
+	nextScene := nextSceneFunc()
+	logger.LOG.Debug().Msg("Next scene loaded, removing unused graphics objects")
 	unloadUncommonGraphicObjs(gs.currentScene, nextScene, gs.GlobalSprites)
 
 	gs.currentScene = nextScene
+}
+
+func (gs *globalScene) Kill() {
+	go gs.clearSprites()
+	go gs.clearAudio()
+	go gs.killGameObjects()
+	go Kill(gs.currentScene)
+}
+
+func (gs *globalScene) clearSprites() {
+	for _, sprite := range gs.GlobalSprites {
+		if sprite == nil {
+			continue
+		}
+		err := sprite.Clear()
+		if err != nil {
+			logger.LOG.Warn().Err(err).Msg("Trying to continue anyway")
+		}
+	}
+}
+
+func (gs *globalScene) clearAudio() {
+	for _, audioPlayer := range gs.GlobalAudioPlayers {
+		if audioPlayer == nil {
+			logger.LOG.Warn().Msg("Nil audioPlayer")
+			continue
+		}
+		err := audioPlayer.Clear()
+		if err != nil {
+			logger.LOG.Warn().Err(err).Msg("Trying to continue anyway")
+		}
+	}
+}
+
+func (gs *globalScene) killGameObjects() {
+	for _, gameObj := range gs.GlobalGameObjects {
+		if !gameObj.IsDead() {
+			gameObj.Kill()
+		}
+	}
 }

@@ -11,4 +11,7 @@ const (
 	LoadingScene Flag = iota
 	TitleScene   Flag = iota
 	WorldScene   Flag = iota
+
+	EnvironmentCollider Flag = iota
+	AllColliders        Flag = iota
 )

@@ -150,14 +150,14 @@ func getVAO(textureCoords [12]float32) (uint32, error) {
 
 // NOT THREAD SAFE (never will be b/c glfw & gl)
 func setTransform(
-	shaderId uint32, screenX float32, screenY float32,
+	shaderId uint32, screenCoords ScreenCoords,
 ) {
 	gl.UseProgram(shaderId)
 	// transform := mgl32.Translate3D(screenX, screenY/float32(screenHeight), screenY)
 	trans := [16]float32{
-		1.0, 0.0, 0.0, screenX,
-		0.0, 1.0, 0.0, screenY,
-		0.0, 0.0, 1.0, screenY,
+		1.0, 0.0, 0.0, screenCoords.X,
+		0.0, 1.0, 0.0, screenCoords.Y,
+		0.0, 0.0, 1.0, screenCoords.Y,
 		0.0, 0.0, 0.0, 1.0,
 	}
 	// logger.LOG.Error().Msgf("%v", trans)

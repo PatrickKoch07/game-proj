@@ -33,12 +33,12 @@ func (mm MainMenu) Kill() {
 	mm.exitButton.UnsubInput()
 }
 
-func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []*audio.Player, bool) {
+func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []audio.Player, bool) {
 	var Sprites []*sprites.Sprite = make([]*sprites.Sprite, 2)
-	var AudioPlayers []*audio.Player = make([]*audio.Player, 2)
+	var AudioPlayers []audio.Player = make([]audio.Player, 2)
 	creationSuccess := true
 
-	textPlaySprites, ok := text.TextToSprites("play", 584, 656, 1.75, 20)
+	textPlaySprites, ok := text.TextToSprites("play", sprites.ScreenCoords{X: 584, Y: 656}, 1.75, 20)
 	if !ok {
 		creationSuccess = false
 		logger.LOG.Error().Msg(
@@ -57,7 +57,7 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []*au
 		AudioPlayers[0] = mm.playButton.AudioPlayer
 	}
 
-	textExitSprites, ok := text.TextToSprites("exit", 584, 772, 1.75, 20)
+	textExitSprites, ok := text.TextToSprites("exit", sprites.ScreenCoords{X: 584, Y: 772}, 1.75, 20)
 	if !ok {
 		creationSuccess = false
 		logger.LOG.Error().Msg(
@@ -77,7 +77,7 @@ func (mm MainMenu) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []*au
 		AudioPlayers[0] = mm.exitButton.AudioPlayer
 	}
 
-	textSprites, ok := text.TextToSprites("Welcome to the Game!", 192, 384, 3, 20)
+	textSprites, ok := text.TextToSprites("Welcome to the Game!", sprites.ScreenCoords{X: 192, Y: 384}, 3, 20)
 	if !ok {
 		creationSuccess = false
 		logger.LOG.Error().Msg("failed to make some of the title text sprites. trying to display anyway")

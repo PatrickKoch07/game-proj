@@ -13,7 +13,7 @@ import (
 
 type button struct {
 	Sprite        *sprites.Sprite
-	AudioPlayer   *audio.Player
+	AudioPlayer   audio.Player
 	inputListener inputs.InputListener
 	OnPress       func()
 	OnRelease     func()
@@ -30,10 +30,11 @@ func CreateButton(height, width, screenX, screenY float32) (*button, error) {
 			},
 			TextureRelPath: "ui/button.png",
 			TextureCoords:  sprites.TexCoordOneSpritePerImg,
-			ScreenX:        screenX,
-			ScreenY:        screenY,
-			SpriteOriginX:  0.0,
-			SpriteOriginY:  0.0,
+			ScreenCenter:   sprites.ScreenCoords{X: screenX, Y: screenY},
+			SpriteCenter:   sprites.SpriteCoords{X: 0.0, Y: 0.0},
+			// below two lines technically not needed since we manually change Tex Dim anyway
+			StretchX: 1.0,
+			StretchY: 1.0,
 		},
 	)
 	if err != nil {
@@ -63,38 +64,38 @@ func (b *button) UnsubInput() {
 	inputs.GetInputManager().Unsubscribe(inputs.LMB, weak.Make(&b.inputListener))
 }
 
-func (b *button) OnKeyAction(action inputs.Action) {
-	mX, mY := cursor.GetCursorScreenPosition()
-	if mX <= b.Sprite.ScreenX {
+func (b *button) OnKeyAction(keyAction inputs.KeyAction) {
+	mScreenPos := cursor.GetCursor().ScreenCenter
+	if mScreenPos.X <= b.Sprite.ScreenCenter.X {
 		return
 	}
-	if mX >= b.Sprite.ScreenX+b.Sprite.Tex.DimX {
-		return
-	}
-
-	if mY <= b.Sprite.ScreenY {
-		return
-	}
-	if mY >= b.Sprite.ScreenY+b.Sprite.Tex.DimY {
+	if mScreenPos.X >= b.Sprite.ScreenCenter.X+b.Sprite.Tex.DimX {
 		return
 	}
 
-	(*b.AudioPlayer).Play()
+	if mScreenPos.Y <= b.Sprite.ScreenCenter.Y {
+		return
+	}
+	if mScreenPos.Y >= b.Sprite.ScreenCenter.Y+b.Sprite.Tex.DimY {
+		return
+	}
 
-	if action == inputs.Press {
+	b.AudioPlayer.Play()
+
+	if keyAction.Action == inputs.Press {
 		logger.LOG.Debug().Msgf(
 			"Mouse pressed at (%v, %v)",
-			mX,
-			mY,
+			mScreenPos.X,
+			mScreenPos.Y,
 		)
 		b.OnPress()
 	}
 
-	if action == inputs.Release {
+	if keyAction.Action == inputs.Release {
 		logger.LOG.Debug().Msgf(
 			"Mouse released at (%v, %v)",
-			mX,
-			mY,
+			mScreenPos.X,
+			mScreenPos.Y,
 		)
 		b.OnRelease()
 	}
