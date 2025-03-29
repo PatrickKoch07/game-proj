@@ -14,6 +14,7 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
+// dummy struct to test colliders
 type Player struct {
 	*characters.CollidableObject
 	inputListener inputs.InputListener
@@ -23,9 +24,6 @@ type Player struct {
 	baseVelocityY float32
 	movespeed     float32
 }
-
-// func createPlayer() *player {
-// }
 
 func (p *Player) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []audio.Player, bool) {
 	var Sprites []*sprites.Sprite = make([]*sprites.Sprite, 0, 1)

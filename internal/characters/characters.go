@@ -31,3 +31,5 @@ func CreateCollidableObject(
 
 	return c
 }
+
+// TODO: actual character struct and associated methods

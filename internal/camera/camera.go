@@ -53,3 +53,5 @@ func WorldCoordsToScreenCoords(worldCoords colliders.WorldCoords) sprites.Screen
 
 // TODO some draw optimizations on where the camera is currently at, so we don't even bother to
 // loop through drawing the sprites very much not in view
+
+// TODO moving the camera methods & attaching it to some object

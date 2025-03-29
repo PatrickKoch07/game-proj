@@ -13,6 +13,7 @@ import (
 	"github.com/PatrickKoch07/game-proj/internal/sprites"
 )
 
+// dummy struct to test colliders
 type Block struct {
 	*characters.CollidableObject
 }
@@ -25,7 +26,7 @@ func (b *Block) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []audio.
 	creationSuccess := true
 
 	collider := colliders.Collider2D{
-		Tags:             make([]gameState.Flag, 0),
+		Tags:             make([]gameState.Flag, 1),
 		CenterCoords:     colliders.WorldCoords{X: 0.0, Y: 0.0},
 		Width:            128.0,
 		Height:           128.0,
@@ -35,7 +36,7 @@ func (b *Block) InitInstance() ([]scenes.GameObject, []*sprites.Sprite, []audio.
 		Ignore:           make([]gameState.Flag, 0),
 		Parent:           &GameObjects[0],
 	}
-	// collider.Tags[0] = gameState.EnvironmentCollider
+	collider.Tags[0] = gameState.EnvironmentCollider
 	colliderSprites := make([]*sprites.Sprite, 1)
 	colliderSprite, err := sprites.CreateSprite(
 		&sprites.SpriteInitParams{

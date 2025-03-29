@@ -19,11 +19,6 @@ type WorldCoords struct {
 	Y float32
 }
 
-type collisionCoords struct {
-	End   WorldCoords
-	Start WorldCoords
-}
-
 type Collider2D struct {
 	Tags []gameState.Flag
 	// where this collider lives
@@ -68,157 +63,6 @@ func equals(c1 *Collider2D, c2 *Collider2D) bool {
 	return true
 }
 
-// func (c Collider2D) fillIds(colliderMap ColliderMap2D) {
-// 	leftX := c.CenterCoords.X - c.Width/2.0
-// 	rightX := c.CenterCoords.X + c.Width/2.0
-// 	topY := c.CenterCoords.Y + c.Height/2.0
-// 	bottomY := c.CenterCoords.Y - c.Height/2.0
-
-// 	topLeftCoords := colliderMap.worldCoordsToColliderCoords(leftX, topY)
-// 	bottomRightCoords := colliderMap.worldCoordsToColliderCoords(rightX, bottomY)
-
-// 	if len(c.colliderIds) == 0 {
-// 		c.colliderIds = make(
-// 			[]colliderMapCoords,
-// 			(bottomRightCoords.X-topLeftCoords.X)*(topLeftCoords.Y-bottomRightCoords.Y),
-// 		)
-// 	}
-
-// 	counter := 0
-// 	for i := 0; i <= bottomRightCoords.X-topLeftCoords.X; i++ {
-// 		for j := 0; j <= topLeftCoords.Y-bottomRightCoords.Y; j++ {
-// 			c.colliderIds[counter] = colliderMapCoords{
-// 				X: topLeftCoords.X + i,
-// 				Y: bottomRightCoords.Y + i,
-// 			}
-// 			counter++
-// 		}
-// 	}
-// }
-
-// func (c Collider2D) MoveCollider(
-// 	newCenter WorldCoords, colliderMap ColliderMap2D,
-// ) WorldCoords {
-// 	smallestDelta := 1.0 //min(c.Height, c.Width)
-// 	numWorkersY := c.Height / spaceBetweenRays
-// 	numWorkersX := c.Width / spaceBetweenRays
-// 	collisionCh := make(chan collisionCoords)
-// 	for i := 0; float32(i) < numWorkersY; i++ {
-// 		var dy float32
-// 		if float32(i) > numWorkersY {
-// 			dy = (float32(i) - numWorkersY) * spaceBetweenRays
-// 		} else {
-// 			dy = float32(i) * spaceBetweenRays
-// 		}
-// 		deltaY := dy*float32(i) - c.Height/2.0
-
-// 		// right side
-// 		end := WorldCoords{
-// 			Y: newCenter.Y + deltaY,
-// 			X: newCenter.X + c.Width/2.0,
-// 		}
-// 		start := WorldCoords{
-// 			Y: c.CenterCoords.Y + deltaY,
-// 			X: c.CenterCoords.X + c.Width/2.0,
-// 		}
-// 		go rayCast(start, end, smallestDelta, colliderMap, collisionCh)
-
-// 		// left side
-// 		end = WorldCoords{
-// 			Y: newCenter.Y + deltaY,
-// 			X: newCenter.X - c.Width/2.0,
-// 		}
-// 		start = WorldCoords{
-// 			Y: c.CenterCoords.Y + deltaY,
-// 			X: c.CenterCoords.X - c.Width/2.0,
-// 		}
-// 		go rayCast(start, end, smallestDelta, colliderMap, collisionCh)
-// 	}
-// 	for i := 0; float32(i) < numWorkersX; i++ {
-// 		var dx float32
-// 		if float32(i) > numWorkersX {
-// 			dx = (float32(i) - numWorkersX) * spaceBetweenRays
-// 		} else {
-// 			dx = float32(i) * spaceBetweenRays
-// 		}
-// 		deltaX := dx*float32(i) - c.Width/2.0
-
-// 		// top side
-// 		end := WorldCoords{
-// 			Y: newCenter.Y + c.Height/2.0,
-// 			X: newCenter.X + deltaX,
-// 		}
-// 		start := WorldCoords{
-// 			Y: c.CenterCoords.Y + c.Height/2.0,
-// 			X: c.CenterCoords.X + deltaX,
-// 		}
-// 		go rayCast(start, end, smallestDelta, colliderMap, collisionCh)
-
-// 		// bottom side
-// 		end = WorldCoords{
-// 			Y: newCenter.Y - c.Height/2.0,
-// 			X: newCenter.X + deltaX,
-// 		}
-// 		start = WorldCoords{
-// 			Y: c.CenterCoords.Y - c.Height/2.0,
-// 			X: c.CenterCoords.X + deltaX,
-// 		}
-// 		go rayCast(start, end, smallestDelta, colliderMap, collisionCh)
-// 	}
-
-// 	// shouldn't ever move even close to this amount
-// 	var smallestDist float64 = 1000.0
-// 	for i := 0; i < int(utils.Ceil32(numWorkersY)*2+utils.Ceil32(numWorkersX)*2); i++ {
-// 		collisionCoord := <-collisionCh
-// 		start := collisionCoord.Start
-// 		end := collisionCoord.End
-// 		dist := math.Abs(float64(end.X-start.X)) + math.Abs(float64(end.Y-start.Y))
-// 		if dist < smallestDist {
-// 			smallestDist = dist
-// 		}
-// 	}
-
-// 	slope := (newCenter.Y - c.CenterCoords.Y) / (newCenter.X - c.CenterCoords.X)
-// 	deltaX := float32(smallestDist)/1.0 + slope
-// 	deltaY := slope * deltaX
-// 	return WorldCoords{X: c.CenterCoords.X + deltaX, Y: c.CenterCoords.Y + deltaY}
-// }
-
-// func rayCast(
-// 	start WorldCoords, end WorldCoords, smallestDelta float32, colliderMap ColliderMap2D,
-// 	resCh chan<- collisionCoords,
-// ) {
-// 	deltaX := (end.X - start.X)
-// 	deltaY := (end.Y - start.Y)
-// 	numSteps := int(utils.Ceil32(max(deltaX/smallestDelta, deltaY/smallestDelta)))
-// 	dX := deltaX / float32(numSteps)
-// 	dY := deltaY / float32(numSteps)
-// 	for i := 0; i < numSteps; i++ {
-// 		x := start.X + float32(i)*dX
-// 		y := start.Y + float32(i)*dY
-// 		colliderIds := colliderMap.worldCoordsToColliderCoords(x, y)
-// 		objectsToCheck := colliderMap.Map[colliderIds]
-// 		for _, collider := range objectsToCheck {
-// 			if x > collider.CenterCoords.X+collider.Width/2.0 {
-// 				continue
-// 			}
-// 			if x < collider.CenterCoords.X-collider.Width/2.0 {
-// 				continue
-// 			}
-
-// 			if y > collider.CenterCoords.Y+collider.Height/2.0 {
-// 				continue
-// 			}
-// 			if y < collider.CenterCoords.Y-collider.Height/2.0 {
-// 				continue
-// 			}
-
-// 			resCh <- collisionCoords{End: WorldCoords{X: x, Y: y}, Start: start}
-// 			return
-// 		}
-// 	}
-// }
-
 // Moves the collider until it encounters a blocking collider. Along the way, it notifies all
 // colliders it encounters, excluding colliders with any of the ignored tags. If it hits any
 // blocking object along its movement path, all movement stops.
@@ -227,6 +71,7 @@ func (c *Collider2D) MoveCollider(
 ) WorldCoords {
 	deltaY := finalCenter.Y - c.CenterCoords.Y
 	deltaX := finalCenter.X - c.CenterCoords.X
+	// split the big move into distinct points to test for collisions
 	var dx, dy float32
 	if deltaX == 0 {
 		if deltaY == 0 {
@@ -240,9 +85,20 @@ func (c *Collider2D) MoveCollider(
 		dy = dx * float32(slope)
 	}
 
+	// Locking ALL collider maps so we can safely check for collisions without one randomly
+	// popping in (or one randomly popping into half only, so we lock all)
+	// Theres gotta be another way, but oh well
+	getColliderMapLayers().Mu.Lock()
+	initialCenter := WorldCoords{X: c.CenterCoords.X, Y: c.CenterCoords.Y}
+	defer func() {
+		updateColliderInMap(c, initialCenter)
+		getColliderMapLayers().Mu.Unlock()
+	}()
+
+	// get all collider maps to check blocking collisions against
 	colliderMaps := make([]*ColliderMap2D, len(c.Block)+1)
 	for i, blockFlag := range c.Block {
-		colliderMap, ok := GetColliderMap(blockFlag)
+		colliderMap, ok := getColliderMap(blockFlag)
 		if !ok {
 			logger.LOG.Error().Msg("Bad collider map flag in collision detection.")
 			continue
@@ -250,7 +106,8 @@ func (c *Collider2D) MoveCollider(
 		colliderMaps[i] = colliderMap
 	}
 
-	colliderMap, ok := GetColliderMap(gameState.AllColliders)
+	// add the total collider map for overlaps and check the current position for any overlaps
+	colliderMap, ok := getColliderMap(gameState.AllColliders)
 	colliderMaps[len(colliderMaps)-1] = colliderMap
 	if !ok {
 		logger.LOG.Error().Msg("Bad collider map flag in collision detection, can't call overlaps")
@@ -262,7 +119,7 @@ func (c *Collider2D) MoveCollider(
 	upRight := WorldCoords{X: c.CenterCoords.X + c.Width/2.0, Y: c.CenterCoords.Y + c.Height/2.0}
 	downLeft := WorldCoords{X: c.CenterCoords.X - c.Width/2.0, Y: c.CenterCoords.Y - c.Height/2.0}
 	downRight := WorldCoords{X: c.CenterCoords.X + c.Width/2.0, Y: c.CenterCoords.Y - c.Height/2.0}
-	mapIds := colliderMap.colliderToAllColliderCoords(c)
+	mapIds := colliderMap.getColliderCoords(c)
 	for _, id := range mapIds {
 		for _, collider := range colliderMap.Map[id] {
 			if equals(c, collider) {
@@ -283,7 +140,7 @@ func (c *Collider2D) MoveCollider(
 	}
 	wg.Wait()
 	close(collidedCh)
-	// Loop over hit objects and add to objects seen
+	// Loop over overlapping objects and add to objects seen
 	if len(collidedCh) == maxCollisionsPerMove {
 		logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
 	}
@@ -295,8 +152,10 @@ func (c *Collider2D) MoveCollider(
 		lastSeenColliders = append(lastSeenColliders, collider)
 	}
 
+	// iterates over the discretized movement points
 	currentCenter := WorldCoords{X: c.CenterCoords.X, Y: c.CenterCoords.Y}
 	for i := 0; currentCenter.Y != finalCenter.Y || currentCenter.X != finalCenter.X; i++ {
+		// returned if this step hits a blocking collision
 		previousCenter := WorldCoords{X: currentCenter.X, Y: currentCenter.Y}
 
 		dx = min(dx, float32(math.Abs(float64(finalCenter.X-currentCenter.X))))
@@ -313,6 +172,8 @@ func (c *Collider2D) MoveCollider(
 			currentCenter.Y -= dy
 		}
 
+		// we will only be checking the collisions on the sides leading the movement.
+		// Ex. if we move up and left, only check for collisions on the upper-most and left sides
 		var verticalDown WorldCoords
 		var verticalUp WorldCoords
 		if deltaX > 0 {
@@ -334,7 +195,7 @@ func (c *Collider2D) MoveCollider(
 
 		// All go routines here write to buffered channel IF they have a collision.
 		// They write their own collider so we can loop through all the colliders we 'hit'
-		// If we have more than 'max' writes to objects we collided with, there is an issue
+		// If we have more than 'max' writes to objects we collided with, there is an issue (maybe)
 		collidedCh = make(chan *Collider2D, maxCollisionsPerMove)
 		for _, colliderMap := range colliderMaps[:len(colliderMaps)-1] {
 			horizontalIds := horizontalEdgeIds(horizontalLeft, horizontalRight, colliderMap)
@@ -342,9 +203,6 @@ func (c *Collider2D) MoveCollider(
 				for _, collider := range colliderMap.Map[horizontalId] {
 					if equals(c, collider) {
 						continue
-					}
-					if len(collidedCh) == maxCollisionsPerMove {
-						logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
 					}
 					wg.Add(1)
 					go func() {
@@ -358,9 +216,6 @@ func (c *Collider2D) MoveCollider(
 				for _, collider := range colliderMap.Map[verticalId] {
 					if equals(c, collider) {
 						continue
-					}
-					if len(collidedCh) == maxCollisionsPerMove {
-						logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
 					}
 					wg.Add(1)
 					go func() {
@@ -383,8 +238,8 @@ func (c *Collider2D) MoveCollider(
 				continue
 			}
 			blockColliders = append(blockColliders, collider)
-			c.OnEnterCollision(collider)
-			collider.OnEnterCollision(c)
+			go c.OnEnterCollision(collider)
+			go collider.OnEnterCollision(c)
 		}
 		if len(blockColliders) != 0 {
 			logger.LOG.Info().Msg("Blocked collider movement.")
@@ -392,15 +247,7 @@ func (c *Collider2D) MoveCollider(
 			return previousCenter
 		}
 
-		// select {
-		// case <-collidedCh:
-		// 	c.OnEnterCollision()
-		// 	return previousCenter
-		// default:
-		// }
-
 		// If no blocking collisions, check the colliderMap for notifying collisions
-		// incoming edge calls enter
 		colliderMap = colliderMaps[len(colliderMaps)-1]
 		collidedCh = make(chan *Collider2D, maxCollisionsPerMove)
 		horizontalIds := horizontalEdgeIds(horizontalLeft, horizontalRight, colliderMap)
@@ -438,7 +285,7 @@ func (c *Collider2D) MoveCollider(
 		wg.Wait()
 		close(collidedCh)
 
-		// Loop over hit objects and add to objects seen
+		// Loop over hit objects and add to objects seen this iteration (no duplicates)
 		seenColliders := make([]*Collider2D, 0, maxCollisionsPerMove)
 		if len(collidedCh) == maxCollisionsPerMove {
 			logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
@@ -450,7 +297,7 @@ func (c *Collider2D) MoveCollider(
 			seenColliders = append(seenColliders, collider)
 		}
 
-		// for each object seen, track if we are seeing it for the last time
+		// for each object seen last position, check if we didn't see it hit again (call exit!)
 		var lastSeenCollidersBuffer []*Collider2D
 		for _, collider := range lastSeenColliders {
 			hadCollision := false
@@ -459,23 +306,24 @@ func (c *Collider2D) MoveCollider(
 					continue
 				}
 				hadCollision = true
-				// pop element we just saw, we want only elements not in the previous list
+				// pop element just seen; only want newly seen elements by the end of this block
 				seenColliders[i] = seenColliders[len(seenColliders)-1]
 				seenColliders = seenColliders[:len(seenColliders)-1]
 			}
 			// if no collision then we left
 			if !hadCollision {
-				c.OnExitCollision(collider)
-				collider.OnExitCollision(collider)
+				go c.OnExitCollision(collider)
+				go collider.OnExitCollision(collider)
 				// if it did, then we leave it as something seen
 			} else {
 				lastSeenCollidersBuffer = append(lastSeenCollidersBuffer, collider)
 			}
 		}
-		// for each object seen, track if we are seeing it for the first time (didn't get popped)
+
+		// Each object is seen for the first time b/c they werent popped
 		for _, collider := range seenColliders {
-			c.OnEnterCollision(collider)
-			collider.OnEnterCollision(c)
+			go c.OnEnterCollision(collider)
+			go collider.OnEnterCollision(c)
 			lastSeenCollidersBuffer = append(lastSeenCollidersBuffer, collider)
 		}
 		lastSeenColliders = lastSeenCollidersBuffer
@@ -485,266 +333,17 @@ func (c *Collider2D) MoveCollider(
 	return finalCenter
 }
 
+// TODO:
 // // Moves the collider until it encounters a blocking collider. Along the way, it notifies all
 // // colliders it encounters, excluding colliders with any of the ignored tags. In addition, this
 // // continues to move the collider along any non-blocking axis.
 // // Ex. A character wishes to move diagonally UP and LEFT, but is blocked by a vertical wall. The
 // // character will continue to slide UP the wall, but not progress anymore LEFT
-// func (c *Collider2D) MoveColliderWithSlide(
-// 	finalCenter WorldCoords,
-// ) WorldCoords {
-// 	deltaY := finalCenter.Y - c.CenterCoords.Y
-// 	deltaX := finalCenter.X - c.CenterCoords.X
-// 	var dx, dy float32
-// 	if deltaX == 0 {
-// 		if deltaY == 0 {
-// 			return c.CenterCoords
-// 		}
-// 		dx = 0.0
-// 		dy = spaceBetweenRays
-// 	} else {
-// 		slope := math.Abs(float64(deltaY / deltaX))
-// 		dx = float32(math.Sqrt(float64(spaceBetweenRays*spaceBetweenRays) / (1.0 + slope*slope)))
-// 		dy = dx * float32(slope)
-// 	}
+// func (c *Collider2D) MoveColliderWithSlide() {}
 
-// 	colliderMaps := make([]*ColliderMap2D, len(c.Block)+1)
-// 	for i, blockFlag := range c.Block {
-// 		colliderMap, ok := GetColliderMap(blockFlag)
-// 		if !ok {
-// 			logger.LOG.Error().Msg("Bad collider map flag in collision detection.")
-// 			continue
-// 		}
-// 		colliderMaps[i] = colliderMap
-// 	}
-
-// 	colliderMap, ok := GetColliderMap(gameState.AllColliders)
-// 	colliderMaps[len(colliderMaps)-1] = colliderMap
-// 	if !ok {
-// 		logger.LOG.Error().Msg("Bad collider map flag in collision detection, can't call overlaps")
-// 	}
-// 	var lastSeenColliders []*Collider2D
-
-// 	currentCenter := WorldCoords{X: c.CenterCoords.X, Y: c.CenterCoords.Y}
-// 	for i := 0; currentCenter.Y != finalCenter.Y || currentCenter.X != finalCenter.X; i++ {
-// 		previousCenter := WorldCoords{X: currentCenter.X, Y: currentCenter.Y}
-
-// 		dx = min(dx, float32(math.Abs(float64(finalCenter.X-currentCenter.X))))
-// 		dy = min(dy, float32(math.Abs(float64(finalCenter.Y-currentCenter.Y))))
-
-// 		if deltaX > 0 {
-// 			currentCenter.X += dx
-// 		} else {
-// 			currentCenter.X -= dx
-// 		}
-// 		if deltaY > 0 {
-// 			currentCenter.Y += dy
-// 		} else {
-// 			currentCenter.Y -= dy
-// 		}
-
-// 		var verticalDown WorldCoords
-// 		var verticalUp WorldCoords
-// 		if deltaX > 0 {
-// 			verticalDown = WorldCoords{X: currentCenter.X + c.Width/2.0, Y: currentCenter.Y - c.Height/2.0}
-// 			verticalUp = WorldCoords{X: currentCenter.X + c.Width/2.0, Y: currentCenter.Y + c.Height/2.0}
-// 		} else {
-// 			verticalDown = WorldCoords{X: currentCenter.X - c.Width/2.0, Y: currentCenter.Y - c.Height/2.0}
-// 			verticalUp = WorldCoords{X: currentCenter.X - c.Width/2.0, Y: currentCenter.Y + c.Height/2.0}
-// 		}
-// 		var horizontalLeft WorldCoords
-// 		var horizontalRight WorldCoords
-// 		if deltaY > 0 {
-// 			horizontalLeft = WorldCoords{X: currentCenter.X - c.Width/2.0, Y: currentCenter.Y + c.Height/2.0}
-// 			horizontalRight = WorldCoords{X: currentCenter.X + c.Width/2.0, Y: currentCenter.Y + c.Height/2.0}
-// 		} else {
-// 			horizontalLeft = WorldCoords{X: currentCenter.X - c.Width/2.0, Y: currentCenter.Y - c.Height/2.0}
-// 			horizontalRight = WorldCoords{X: currentCenter.X + c.Width/2.0, Y: currentCenter.Y - c.Height/2.0}
-// 		}
-
-// 		// All go routines here write to buffered channel IF they have a collision.
-// 		// They write their own collider so we can loop through all the colliders we 'hit'
-// 		var wg sync.WaitGroup
-// 		// If we have more than 'max' writes to objects we collided with, there is an issue
-// 		verCollidedCh := make(chan *Collider2D, maxCollisionsPerMove)
-// 		horCollidedCh := make(chan *Collider2D, maxCollisionsPerMove)
-// 		for _, colliderMap := range colliderMaps[:len(colliderMaps)-1] {
-// 			horizontalIds := horizontalEdgeIds(horizontalLeft, horizontalRight, colliderMap)
-// 			for _, horizontalId := range horizontalIds {
-// 				for _, collider := range colliderMap.Map[horizontalId] {
-// 					if equals(c, collider) {
-// 						continue
-// 					}
-// 					if len(verCollidedCh) == maxCollisionsPerMove {
-// 						logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
-// 					}
-// 					wg.Add(1)
-// 					go func() {
-// 						defer wg.Done()
-// 						verticalEdgeIntersec(horizontalLeft, horizontalRight, collider, verCollidedCh)
-// 					}()
-// 				}
-// 			}
-// 			verticalIds := verticalEdgeIds(verticalDown, verticalUp, colliderMap)
-// 			for _, verticalId := range verticalIds {
-// 				for _, collider := range colliderMap.Map[verticalId] {
-// 					if equals(c, collider) {
-// 						continue
-// 					}
-// 					if len(horCollidedCh) == maxCollisionsPerMove {
-// 						logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
-// 					}
-// 					wg.Add(1)
-// 					go func() {
-// 						defer wg.Done()
-// 						horizontalEdgeIntersec(verticalDown, verticalUp, collider, horCollidedCh)
-// 					}()
-// 				}
-// 			}
-// 		}
-// 		wg.Wait()
-// 		close(horCollidedCh)
-// 		close(verCollidedCh)
-
-// 		if len(horCollidedCh) == maxCollisionsPerMove {
-// 			logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
-// 		}
-// 		if len(verCollidedCh) == maxCollisionsPerMove {
-// 			logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
-// 		}
-// 		// this is to prevent double calling for a single object (both edges touch somehow)
-// 		blockColliders := make([]*Collider2D, 0, maxCollisionsPerMove)
-// 		horCollision := false
-// 		for collider := range horCollidedCh {
-// 			horCollision = true
-// 			if slices.ContainsFunc(blockColliders, func(bc *Collider2D) bool { return equals(bc, collider) }) {
-// 				continue
-// 			}
-// 			blockColliders = append(blockColliders, collider)
-// 		}
-// 		verCollision := false
-// 		for collider := range verCollidedCh {
-// 			verCollision = true
-// 			if slices.ContainsFunc(blockColliders, func(bc *Collider2D) bool { return equals(bc, collider) }) {
-// 				continue
-// 			}
-// 			blockColliders = append(blockColliders, collider)
-// 		}
-// 		if horCollision {
-// 			logger.LOG.Info().Msg("Blocked horizontal collider movement.")
-// 			dx = 0.0
-// 			currentCenter.X = previousCenter.X
-// 			finalCenter.X = previousCenter.X
-// 		}
-// 		if verCollision {
-// 			logger.LOG.Info().Msg("Blocked vertical collider movement.")
-// 			dy = 0.0
-// 			currentCenter.Y = previousCenter.Y
-// 			finalCenter.Y = previousCenter.Y
-// 		}
-// 		if verCollision && horCollision {
-// 			logger.LOG.Info().Msg("Blocked all collider movement.")
-// 			for _, collider := range blockColliders {
-// 				c.OnEnterCollision(collider)
-// 				collider.OnEnterCollision(c)
-// 			}
-// 			c.CenterCoords = previousCenter
-// 			return previousCenter
-// 		}
-
-// 		// select {
-// 		// case <-collidedCh:
-// 		// 	c.OnEnterCollision()
-// 		// 	return previousCenter
-// 		// default:
-// 		// }
-
-// 		// If no blocking collisions, check the colliderMap for notifying collisions
-// 		// incoming edge calls enter
-// 		colliderMap = colliderMaps[len(colliderMaps)-1]
-// 		collidedCh := make(chan *Collider2D, maxCollisionsPerMove)
-// 		if !verCollision {
-// 			horizontalIds := horizontalEdgeIds(horizontalLeft, horizontalRight, colliderMap)
-// 			for _, horizontalId := range horizontalIds {
-// 				for _, collider := range colliderMap.Map[horizontalId] {
-// 					if equals(c, collider) {
-// 						continue
-// 					}
-// 					if utils.AnyOverlap(c.Ignore, collider.Tags) {
-// 						continue
-// 					}
-// 					wg.Add(1)
-// 					go func() {
-// 						defer wg.Done()
-// 						verticalEdgeIntersec(horizontalLeft, horizontalRight, collider, collidedCh)
-// 					}()
-// 				}
-// 			}
-// 		}
-// 		if !horCollision {
-// 			verticalIds := verticalEdgeIds(verticalDown, verticalUp, colliderMap)
-// 			for _, verticalId := range verticalIds {
-// 				for _, collider := range colliderMap.Map[verticalId] {
-// 					if equals(c, collider) {
-// 						continue
-// 					}
-// 					if utils.AnyOverlap(c.Ignore, collider.Tags) {
-// 						continue
-// 					}
-// 					wg.Add(1)
-// 					go func() {
-// 						defer wg.Done()
-// 						horizontalEdgeIntersec(verticalDown, verticalUp, collider, collidedCh)
-// 					}()
-// 				}
-// 			}
-// 		}
-// 		wg.Wait()
-// 		close(collidedCh)
-
-// 		// Loop over hit objects and add to objects seen
-// 		if len(collidedCh) == maxCollisionsPerMove {
-// 			logger.LOG.Warn().Msgf("Saw way too many collisions moving collider: %v", c)
-// 		}
-// 		for collider := range collidedCh {
-// 			if slices.ContainsFunc(blockColliders, func(bc *Collider2D) bool { return equals(bc, collider) }) {
-// 				continue
-// 			}
-// 			blockColliders = append(blockColliders, collider)
-// 		}
-
-// 		// for each object seen, track if we are seeing it for the last time
-// 		var seenCollidersBuffer []*Collider2D
-// 		for _, collider := range lastSeenColliders {
-// 			hadCollision := false
-// 			for i, seenCollider := range blockColliders {
-// 				if !equals(collider, seenCollider) {
-// 					continue
-// 				}
-// 				hadCollision = true
-// 				// pop element we just saw, we want only elements not in the previous list
-// 				blockColliders[i] = blockColliders[len(blockColliders)-1]
-// 				blockColliders = blockColliders[:len(blockColliders)-1]
-// 			}
-// 			// if no collision then we left
-// 			if !hadCollision {
-// 				c.OnExitCollision(collider)
-// 				collider.OnExitCollision(collider)
-// 				seenCollidersBuffer = append(seenCollidersBuffer, collider)
-// 			}
-// 		}
-// 		// for each object seen, track if we are seeing it for the first time
-// 		for _, collider := range blockColliders {
-// 			c.OnEnterCollision(collider)
-// 			collider.OnEnterCollision(c)
-// 			seenCollidersBuffer = append(seenCollidersBuffer, collider)
-// 		}
-// 		lastSeenColliders = seenCollidersBuffer
-// 	}
-// 	c.CenterCoords = finalCenter
-
-// 	return finalCenter
-// }
+// TODO:
+// function for finding when are inside a collider/changing current implementation to exit only
+// when no longer touching the volume (and not inside of it)
 
 func horizontalEdgeIds(left, right WorldCoords, colliderMap *ColliderMap2D) []colliderMapCoords {
 	LeftCoords := colliderMap.worldCoordsToColliderCoords(left)
